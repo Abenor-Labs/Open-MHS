@@ -12,6 +12,9 @@
 
 *An agent asks for 300°. The arm is bounded to 90°. Nothing moves.*
 
+**180 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
+serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
+
 </div>
 
 ---
@@ -27,7 +30,6 @@
 - [Reference](#reference)
 - [Testing](#testing)
 - [Contributing](#contributing)
-- [Author](#author)
 - [License](#license)
 
 ---
@@ -106,6 +108,26 @@ The check runs **twice** — once in the middleware before the driver is called,
 driver before the transport is touched. A third-party driver that enforces nothing still
 cannot be handed an out-of-bounds command. There is a test that fails if you delete either
 check.
+
+### Built like safety software, not like a demo
+
+The claims above are only worth anything if they are enforced under adversarial conditions.
+So they are tested that way:
+
+- **Every rejection test asserts zero bytes were transmitted**, not merely that an error
+  came back. A refused write that still reached the wire would pass a return-value
+  assertion and fail the machine.
+- **The two enforcement points are proven independent.** A test drives the middleware with
+  a deliberately unsafe driver that enforces nothing at all. The command is still refused.
+- **The test suite is mutation-tested.** The safety code was deliberately broken three ways
+  — inclusive bounds made exclusive, the driver check deleted, the middleware check deleted
+  — and the suite was required to catch each one. The third mutation initially survived,
+  which exposed a genuine coverage gap that is now closed.
+- **Ingestion enforces seven rules JSON Schema structurally cannot express**, including
+  "every actuator must be bounded" and "an actuator's unit must match its limit's unit".
+  A tag declaring degrees against a limit in radians is rejected, not converted.
+- **The demo refuses to produce a misleading recording.** It exits non-zero if the unsafe
+  command is *not* rejected, or if the arm drifts more than 1° while blocked.
 
 ## Architecture
 
@@ -365,16 +387,29 @@ pytest                # 180 tests, no hardware required
 ruff check .
 ```
 
-The suite substitutes the **transport** and nothing above it, so the real routers, the real
-driver classes and the real safety evaluation all run:
+No mocks of the thing under test. The suite substitutes the **transport** and nothing
+above it, so the real routers, the real driver classes and the real safety evaluation all
+execute on every run:
 
 ```text
 test → real /rpc route → real driver class → FAKE transport
+                                             ^^^^ only this is fake
 ```
 
-Every rejection test asserts two things: the caller got the right error, **and** the
-transport recorded zero transmissions. A rejected write that still emitted bytes is a
-safety failure that a return-value assertion would happily pass.
+What the 180 tests actually cover:
+
+| Area | What is proved |
+| --- | --- |
+| Bounds | Inclusive at both ends; a value one ulp outside is refused with zero bytes sent |
+| Independence | An unsafe driver that enforces nothing still cannot be handed a bad command |
+| Rate limits | A step change that is in-range at both ends but too fast is refused |
+| Policies | `reject`, `clamp` and `estop` each behave as the tag declares |
+| Desync | A transport that accepts a command without moving reports `-32003` |
+| Auth | Every hardware-facing route is walked and asserted to 401 without a token |
+| Schema | Every shipped capability tag validates against both validators, and malformed ones are rejected by both |
+
+The suite runs in about two seconds and needs no hardware, so there is no excuse for a
+driver to arrive without tests.
 
 ## Contributing
 
@@ -401,19 +436,6 @@ Other high-value work:
 
 Issues and pull requests:
 [github.com/Abenor-Labs/Open-MHS](https://github.com/Abenor-Labs/Open-MHS)
-
-## Author
-
-**Mahamad Suhail** — Full Stack Developer and AI enthusiast.
-
-Open-MHS grew out of a straightforward observation: the tooling for letting language models
-touch the physical world was being built as though hallucination were a solved problem. The
-work here is systems engineering aimed at that gap — schema design, middleware
-architecture, driver abstractions, and a test suite built to prove the safety claims rather
-than assert them.
-
-Focused on AI systems architecture, full-stack engineering, and the infrastructure layer
-that has to exist before agents can safely operate real machines.
 
 ## License
 
