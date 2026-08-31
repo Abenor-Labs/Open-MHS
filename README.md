@@ -351,19 +351,6 @@ Other high-value work:
 Issues and pull requests:
 [github.com/Abenor-Labs/Open-MHS](https://github.com/Abenor-Labs/Open-MHS)
 
-## Author
-
-**Mahamad Suhail** — Full Stack Developer and AI enthusiast.
-
-Open-MHS grew out of a straightforward observation: the tooling for letting language models
-touch the physical world was being built as though hallucination were a solved problem. The
-work here is systems engineering aimed at that gap — schema design, middleware
-architecture, driver abstractions, and a test suite built to prove the safety claims rather
-than assert them.
-
-Focused on AI systems architecture, full-stack engineering, and the infrastructure layer
-that has to exist before agents can safely operate real machines.
-
 ## License
 
 [Apache-2.0](LICENSE)
