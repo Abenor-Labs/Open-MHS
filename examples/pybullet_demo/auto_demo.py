@@ -73,6 +73,20 @@ OVERLAY_BGR: dict[str, tuple[int, int, int]] = {
 }
 DEFAULT_BGR = (200, 200, 200)
 
+#: OpenCV's Hershey fonts are ASCII-only: anything outside it is drawn as "??". The
+#: terminal keeps the real characters; only the copy burned into the video is folded down.
+ASCII_FOLD = str.maketrans({
+    "·": "-", "─": "-", "—": "-", "–": "-", "→": "->",
+    "±": "+/-", "°": " deg", "█": "#", "…": "...",
+    "“": '"', "”": '"', "‘": "'", "’": "'", "✓": "OK",
+    "✋": "", "²": "2", "•": "-",
+})
+
+
+def to_ascii(text: str) -> str:
+    """Fold a line down to what cv2 can actually draw."""
+    return text.translate(ASCII_FOLD).encode("ascii", "replace").decode("ascii")
+
 TAG_PATH = Path(__file__).with_name("demo_arm.mhs")
 VIDEO_PATH = Path(__file__).with_name("open_mhs_cinematic_demo.mp4")
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -108,19 +122,26 @@ TYPING_SPEED = 1.44
 FRAME_W, FRAME_H = 1280, 720
 
 BG = (0.02, 0.024, 0.03)            # near-black, faintly blue
-FLOOR_RGBA = [0.055, 0.062, 0.075, 1.0]
+FLOOR_RGBA = [0.075, 0.082, 0.095, 1.0]
 ACCENT_CYAN = [0.0, 0.75, 0.85, 1.0]
-ARM_DARK = [0.12, 0.13, 0.15, 1.0]
-ARM_ACCENT = [0.55, 0.58, 0.62, 1.0]
-ARM_ALARM = [0.75, 0.06, 0.08, 1.0]
 
-CAM_TARGET = [0.0, 0.0, 0.62]
-CAM_DISTANCE = 2.35
+#: The subject has to be VISIBLE. A dark arm on a dark floor under low ambient light
+#: renders as a silhouette you cannot read - the first cut of this demo lost the robot
+#: entirely. Bright brushed metal against the dark room is the whole contrast budget.
+ARM_DARK = [0.62, 0.65, 0.70, 1.0]
+ARM_ACCENT = [0.86, 0.89, 0.93, 1.0]
+ARM_ALARM = [0.92, 0.15, 0.16, 1.0]
+
+#: Target is offset in X so the arm sits in the RIGHT third of the frame, leaving the left
+#: for narration. It is also raised to 0.70 m: the iiwa is ~1.3 m tall and the first cut
+#: cropped its head off.
+CAM_TARGET = [-0.55, 0.0, 0.70]
+CAM_DISTANCE = 3.05
 CAM_YAW = 42.0
-#: Positive pitch puts the camera BELOW the target, looking up at the arm. At this
-#: distance that lands the lens ~0.19 m above the floor - low and dramatic, not buried.
-CAM_PITCH = 10.5
-CAM_FOV = 34.0
+#: Positive pitch puts the camera BELOW the target, looking up at the arm - low and
+#: dramatic, and at this distance the lens still clears the floor.
+CAM_PITCH = 8.0
+CAM_FOV = 40.0
 CAM_DRIFT_DEG_PER_S = 1.1            # slow orbit, enough to feel alive
 
 LIGHT_DIRECTION = [-2.2, -1.4, 2.6]
@@ -140,7 +161,7 @@ _fast = False
 _headless = False
 _ticks = 0
 _recorder: Recorder | None = None
-_overlay: deque[tuple[str, tuple[int, int, int]]] = deque(maxlen=15)
+_overlay: deque[tuple[str, tuple[int, int, int]]] = deque(maxlen=18)
 _banner: tuple[str, tuple[int, int, int]] = ("", (200, 200, 200))
 _alarm = False
 _dry_run = False
@@ -226,9 +247,9 @@ def _grab_frame() -> np.ndarray:
         shadow=1 if SHADOWS else 0,
         lightDirection=LIGHT_DIRECTION,
         lightColor=LIGHT_COLOR,
-        lightAmbientCoeff=0.18,     # deep shadows: the arm should emerge from the dark
-        lightDiffuseCoeff=0.85,
-        lightSpecularCoeff=0.55,
+        lightAmbientCoeff=0.42,     # enough fill that the arm reads as metal, not shadow
+        lightDiffuseCoeff=0.95,
+        lightSpecularCoeff=0.70,
         renderer=renderer,
     )
     rgb = np.reshape(np.asarray(rgba, dtype=np.uint8), (FRAME_H, FRAME_W, 4))[:, :, :3]
@@ -243,34 +264,44 @@ def _grab_frame() -> np.ndarray:
 
 
 def _compose(frame: np.ndarray) -> np.ndarray:
-    """Draw the narration, the phase banner and the framing onto a rendered frame."""
-    overlay = frame.copy()
+    """Draw the narration panel, the phase banner and the framing onto a rendered frame.
 
-    # Bottom scrim so terminal text stays legible over the floor.
-    cv2.rectangle(overlay, (0, FRAME_H - 300), (FRAME_W, FRAME_H), (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.62, frame, 0.38, 0, frame)
+    Layout is a two-column split: the terminal owns the left, the robot owns the right.
+    The first cut painted translucent text straight over the arm, which made both harder
+    to read than either would have been alone.
+    """
+    panel_w = int(FRAME_W * 0.54)
+
+    # Left panel: near-opaque, so the terminal reads as a terminal.
+    scrim = frame.copy()
+    cv2.rectangle(scrim, (0, 0), (panel_w, FRAME_H), (10, 9, 8), -1)
+    cv2.addWeighted(scrim, 0.88, frame, 0.12, 0, frame)
+    cv2.line(frame, (panel_w, 0), (panel_w, FRAME_H), (54, 50, 44), 1)
 
     if _alarm:
-        cv2.rectangle(frame, (0, 0), (FRAME_W - 1, FRAME_H - 1), (60, 60, 235), 6)
+        cv2.rectangle(frame, (0, 0), (FRAME_W - 1, FRAME_H - 1), (60, 60, 235), 7)
 
-    # Phase banner, top left.
+    # Phase banner, top of the panel, with a coloured rule under it.
     text, colour = _banner
     if text:
-        cv2.putText(frame, text, (44, 62), cv2.FONT_HERSHEY_DUPLEX, 0.95, (0, 0, 0), 5,
+        text = to_ascii(text)
+        cv2.putText(frame, text, (40, 62), cv2.FONT_HERSHEY_DUPLEX, 0.86, (0, 0, 0), 6,
                     cv2.LINE_AA)
-        cv2.putText(frame, text, (44, 62), cv2.FONT_HERSHEY_DUPLEX, 0.95, colour, 2,
+        cv2.putText(frame, text, (40, 62), cv2.FONT_HERSHEY_DUPLEX, 0.86, colour, 2,
                     cv2.LINE_AA)
+        cv2.line(frame, (40, 80), (panel_w - 40, 80), colour, 2)
 
-    # Narration, bottom left, oldest first.
-    y = FRAME_H - 288
+    # Narration, bottom-anchored so new lines rise like a real terminal.
+    line_h = 24
+    y = FRAME_H - 46 - (len(_overlay) - 1) * line_h
     for line, line_colour in _overlay:
-        cv2.putText(frame, line[:96], (44, y), cv2.FONT_HERSHEY_PLAIN, 1.12,
+        cv2.putText(frame, to_ascii(line)[:64], (40, y), cv2.FONT_HERSHEY_PLAIN, 1.25,
                     line_colour, 1, cv2.LINE_AA)
-        y += 19
+        y += line_h
 
-    # Wordmark, bottom right.
-    cv2.putText(frame, "OPEN-MHS", (FRAME_W - 196, FRAME_H - 34),
-                cv2.FONT_HERSHEY_DUPLEX, 0.72, (180, 180, 180), 1, cv2.LINE_AA)
+    # Wordmark, bottom right, over the robot half.
+    cv2.putText(frame, "OPEN-MHS", (FRAME_W - 186, FRAME_H - 32),
+                cv2.FONT_HERSHEY_DUPLEX, 0.68, (170, 170, 170), 1, cv2.LINE_AA)
     return frame
 
 

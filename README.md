@@ -23,6 +23,7 @@
 - [Architecture](#architecture)
 - [Quickstart](#quickstart)
 - [The Cinematic Sandbox Demo](#the-cinematic-sandbox-demo)
+- [Status — what works today, what's next](#status--what-works-today-whats-next)
 - [Reference](#reference)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -267,6 +268,63 @@ produce a misleading recording.
 > gap is the entire argument — the firmware would happily accept 150°, and only the
 > declared envelope stops it.
 
+## Status — what works today, what's next
+
+### What works today
+
+**Specification**
+
+- [x] Capability Tag schema (JSON Schema draft 2020-12) — sensors, actuators, safety limits,
+      units, rates, enforcement level, violation policy
+- [x] Ingestion validation catches what JSON Schema structurally cannot: every actuator is
+      bounded, units agree between actuator and limit, ids are unique across the union of
+      sensors and actuators, defaults sit inside their own limits, references resolve
+
+**Middleware**
+
+- [x] Discovery registry — register, discover, heartbeat, deregister
+- [x] JSON-RPC 2.0 — `mhs.read`, `mhs.write`, `mhs.discover`, `mhs.emergency_stop`, plus
+      batches and notifications
+- [x] Two independent enforcement points (middleware before dispatch, driver before transmit)
+- [x] Inclusive bounds and `max_rate` rate limiting
+- [x] All three `on_violation` policies honoured: `reject`, `clamp`, `estop`
+- [x] Closed-loop verification against a feedback sensor, reporting `-32003` on desync
+- [x] Per-actuator human confirmation gates
+- [x] API-key auth that fails safe, Bearer and `x-api-key`, multi-token rotation
+
+**Integration**
+
+- [x] MCP adapter — four tools, refusals rendered as text a model can act on
+- [x] Real serial transport driving Marlin/GRBL-style G-code
+- [x] In-memory transport with fault injection (dead link, stuck axis)
+- [x] PyBullet demo exporting a narrated MP4
+
+**Quality**
+
+- [x] 180 tests, no hardware required
+- [x] CI on Python 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
+
+### Roadmap
+
+Not built. Listed in rough order of how much they matter — contributions welcome on any of
+them, and the first two are the ones that would change what this project can honestly claim.
+
+- [ ] **Signed capability tags.** Today a tag is authenticated but not *attested*: anyone
+      holding the API token can register a device declaring whatever limits it likes. This
+      is the deepest hole in the trust model.
+- [ ] **Per-device credentials.** One shared secret means a compromised sensor's token can
+      command a robotic arm.
+- [ ] **Enforce `max_duration_s`.** The schema defines it; the middleware parses it and
+      ignores it. An unenforced field in a safety specification is worse than an absent one.
+- [ ] **Persistent registry and an audit log.** The registry is in-memory: a restart forgets
+      every device, and nothing records what was commanded or refused.
+- [ ] **More drivers** — Modbus TCP, CAN bus, ROS 2, Dynamixel, SCPI instruments, GPIO/I²C.
+- [ ] **Real-hardware validation.** The serial driver is tested against a fake port and
+      pyserial's loopback. Nobody has driven physical metal with it yet, and that report is
+      one of the most valuable things a contributor could file.
+- [ ] **Deployment hardening** — TLS termination guidance, rate limiting on the HTTP surface.
+- [ ] **PyPI release**, so `pip install open-mhs` works without a clone.
+
 ## Reference
 
 ```text
@@ -293,14 +351,7 @@ tests/        180 tests, no hardware required
 extra round trip. `-32003` carries both the commanded and the observed value, because a
 desync means the agent's model of the world has diverged from the world.
 
-**Also built in** — closed-loop verification against feedback sensors, per-actuator human
-confirmation gates, rate limiting, `on_violation` policies (`reject` / `clamp` / `estop`),
-and API-key auth that fails safe. Full spec: [`docs/capability-tags.md`](docs/capability-tags.md).
-
-**Not built yet, stated plainly** — capability tags are authenticated but unsigned, so a
-token holder can publish any limits it likes; there is one shared secret with no per-device
-identity; `max_duration_s` is parsed but not enforced. Signed tags are the right fix and
-are open for contribution.
+Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 
 > [!WARNING]
 > **Status: alpha (v0.1).** The Capability Tag schema is the stable surface. Do not connect
@@ -350,6 +401,19 @@ Other high-value work:
 
 Issues and pull requests:
 [github.com/Abenor-Labs/Open-MHS](https://github.com/Abenor-Labs/Open-MHS)
+
+## Author
+
+**Mahamad Suhail** — Full Stack Developer and AI enthusiast.
+
+Open-MHS grew out of a straightforward observation: the tooling for letting language models
+touch the physical world was being built as though hallucination were a solved problem. The
+work here is systems engineering aimed at that gap — schema design, middleware
+architecture, driver abstractions, and a test suite built to prove the safety claims rather
+than assert them.
+
+Focused on AI systems architecture, full-stack engineering, and the infrastructure layer
+that has to exist before agents can safely operate real machines.
 
 ## License
 
