@@ -1,0 +1,129 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "arm-01",
+  "name": "2-Axis Bench Arm",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "REF-ARM-2A",
+  "firmware_version": "1.2.0",
+  "description": "Reference two-joint arm with a binary gripper. Demonstrates every safety_limit form: numeric bounds with a rate cap, a discrete bound, and a write that requires human confirmation.",
+  "driver": {
+    "transport": "serial",
+    "address": "/dev/ttyUSB0",
+    "module": "drivers.ref_arm:RefArm",
+    "timeout_ms": 1000
+  },
+  "sensors": [
+    {
+      "id": "joint_1_actual",
+      "name": "Shoulder angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": { "min": -200.0, "max": 200.0 },
+      "accuracy": 0.1,
+      "sample_rate_hz": 50.0
+    },
+    {
+      "id": "joint_2_actual",
+      "name": "Elbow angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": { "min": -200.0, "max": 200.0 },
+      "accuracy": 0.1,
+      "sample_rate_hz": 50.0
+    },
+    {
+      "id": "motor_temp",
+      "name": "Motor housing temperature",
+      "datatype": "number",
+      "unit": "degC",
+      "nominal_range": { "min": -10.0, "max": 150.0 },
+      "accuracy": 1.0,
+      "sample_rate_hz": 1.0
+    },
+    {
+      "id": "estop_engaged",
+      "name": "Emergency stop engaged",
+      "datatype": "boolean"
+    }
+  ],
+  "actuators": [
+    {
+      "id": "joint_1",
+      "name": "Shoulder angle (commanded)",
+      "description": "Absolute setpoint for the shoulder joint.",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_1_actual",
+      "settle_time_ms": 800
+    },
+    {
+      "id": "joint_2",
+      "name": "Elbow angle (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_2_actual",
+      "settle_time_ms": 600
+    },
+    {
+      "id": "gripper",
+      "name": "Gripper state",
+      "datatype": "enum",
+      "enum_values": ["open", "closed"],
+      "default": "open",
+      "settle_time_ms": 400,
+      "requires_confirmation": true
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "joint_1",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "max_rate": 30.0,
+      "enforcement": "firmware",
+      "on_violation": "reject",
+      "rationale": "Beyond +/-90 deg the arm collides with the bench mount. Rate capped so the payload is not slung."
+    },
+    {
+      "target": "joint_2",
+      "unit": "deg",
+      "min": -135.0,
+      "max": 135.0,
+      "max_rate": 45.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Cable harness binds past +/-135 deg. Software-only: the firmware does not enforce this bound."
+    },
+    {
+      "target": "gripper",
+      "allowed_values": ["open", "closed"],
+      "enforcement": "firmware",
+      "on_violation": "reject",
+      "rationale": "Only two mechanically valid states. Partial closure is not commandable."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": {
+      "joint_1": 0.0,
+      "joint_2": 0.0,
+      "gripper": "open"
+    },
+    "max_stop_time_ms": 1500
+  },
+  "power": {
+    "voltage_v": 24.0,
+    "max_current_a": 4.0,
+    "hazard_class": "mechanical"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 10
+  }
+}

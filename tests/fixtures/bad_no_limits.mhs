@@ -1,0 +1,26 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "unbounded-heater-01",
+  "name": "Heater With No Declared Limit",
+  "type": "thermal_controller",
+  "description": "INVALID BY DESIGN. Declares a writable heater setpoint with no matching safety_limits entry. Must be rejected at registration: an unbounded actuator is an unbounded machine.",
+  "sensors": [
+    {
+      "id": "block_temp",
+      "datatype": "number",
+      "unit": "degC",
+      "nominal_range": { "min": 0.0, "max": 400.0 },
+      "accuracy": 1.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "heater_setpoint",
+      "datatype": "number",
+      "unit": "degC",
+      "default": 20.0,
+      "feedback_sensor": "block_temp"
+    }
+  ],
+  "safety_limits": []
+}

@@ -1,0 +1,59 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "pybullet-arm-01",
+  "name": "PyBullet KUKA iiwa (simulated)",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "kuka_iiwa/model.urdf",
+  "description": "A KUKA iiwa in a PyBullet simulation, used for the Open-MHS demo. Its base joint is declared safe only between -90 and +90 degrees, which is deliberately tighter than the +/-170 the URDF itself permits: the point is that the capability tag, not the robot, is what defines the safe envelope.",
+  "driver": {
+    "transport": "mock",
+    "address": "pybullet://direct",
+    "module": "examples.pybullet_demo.auto_demo:PyBulletArm",
+    "timeout_ms": 1000
+  },
+  "sensors": [
+    {
+      "id": "joint_0_actual",
+      "name": "Base joint angle (measured)",
+      "description": "Read back from the simulation with getJointState.",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": { "min": -170.0, "max": 170.0 },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "joint_0",
+      "name": "Base joint (commanded)",
+      "description": "Absolute setpoint for the base rotation.",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_0_actual",
+      "settle_time_ms": 500
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "joint_0",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Past +/-90 degrees the arm sweeps through the operator's side of the bench. The robot is mechanically capable of going further, which is exactly why this bound has to be declared and enforced rather than assumed."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": { "joint_0": 0.0 },
+    "max_stop_time_ms": 1000
+  },
+  "power": {
+    "hazard_class": "mechanical"
+  }
+}

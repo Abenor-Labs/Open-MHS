@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-mhs.org/schema/capability_schema.json",
+  "title": "Open-MHS Capability Tag",
+  "description": "Declarative descriptor a device publishes so an AI agent can discover it, understand what it can sense and actuate, and operate it within hardcoded safety boundaries. Serialized as a .mhs or .ohs file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mhs_version",
+    "device_id",
+    "name",
+    "type",
+    "sensors",
+    "actuators",
+    "safety_limits"
+  ],
+  "properties": {
+    "mhs_version": {
+      "description": "Version of the Open-MHS Capability Tag specification this document conforms to.",
+      "type": "string",
+      "enum": ["0.1"]
+    },
+    "device_id": {
+      "$ref": "#/$defs/identifier",
+      "description": "Globally unique, stable identifier for this physical unit. Must survive reboots. Used as the addressing key in every read() and write() call."
+    },
+    "name": {
+      "description": "Human-readable device name shown to operators and agents.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "type": {
+      "description": "Controlled-vocabulary device class. Determines which behavioral expectations an agent may assume.",
+      "type": "string",
+      "enum": [
+        "robotic_arm",
+        "mobile_base",
+        "gantry",
+        "gripper",
+        "linear_stage",
+        "sensor_array",
+        "thermal_controller",
+        "pump",
+        "valve",
+        "mixer",
+        "centrifuge",
+        "spectrometer",
+        "microscope",
+        "power_supply",
+        "camera",
+        "generic"
+      ]
+    },
+    "vendor": {
+      "description": "Manufacturer or maintaining organization.",
+      "type": "string",
+      "maxLength": 128
+    },
+    "model": {
+      "description": "Vendor model designation.",
+      "type": "string",
+      "maxLength": 128
+    },
+    "firmware_version": {
+      "description": "Firmware revision reported by the device. Safety limits are only valid for the firmware that declares them.",
+      "type": "string",
+      "maxLength": 64
+    },
+    "description": {
+      "description": "Free-text summary of what this device does and its physical context.",
+      "type": "string",
+      "maxLength": 1024
+    },
+    "driver": {
+      "description": "How the Open-MHS middleware reaches this device.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport"],
+      "properties": {
+        "transport": {
+          "description": "Physical or logical link used by the driver. 'mock' denotes a simulated device with no hardware attached.",
+          "type": "string",
+          "enum": ["serial", "tcp", "udp", "usb", "i2c", "spi", "gpio", "can", "http", "mock"]
+        },
+        "address": {
+          "description": "Transport-specific address, e.g. 'COM3', '/dev/ttyUSB0', '192.168.1.40:5000', '0x48'.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "module": {
+          "description": "Python import path of the driver class implementing read()/write(), e.g. 'drivers.mock_temp_sensor:MockTempSensor'.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "timeout_ms": {
+          "description": "Per-primitive transport timeout. A driver that exceeds this must fail, never block the agent.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000,
+          "default": 2000
+        }
+      }
+    },
+    "sensors": {
+      "description": "Read-only states. Every entry is addressable by read(device_id, target). Never writable.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/sensor" },
+      "uniqueItems": true
+    },
+    "actuators": {
+      "description": "Writable states. Every entry is addressable by write(device_id, target, value) AND MUST have a matching entry in safety_limits.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/actuator" },
+      "uniqueItems": true
+    },
+    "safety_limits": {
+      "description": "Hardcoded operating boundaries enforced by the middleware before dispatch and by the driver before transmission. A write outside these bounds is rejected, never clamped silently.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/safety_limit" },
+      "uniqueItems": true
+    },
+    "emergency_stop": {
+      "description": "How the device is brought to a safe state immediately. Absence means no software e-stop exists, which an agent must treat as a reason for extra caution.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "target": {
+          "$ref": "#/$defs/identifier",
+          "description": "Actuator id written to trigger the stop, when the stop is expressed as a normal write."
+        },
+        "safe_state": {
+          "description": "Values every actuator is driven to on stop, keyed by actuator id.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": {
+            "type": ["number", "boolean", "string"]
+          }
+        },
+        "max_stop_time_ms": {
+          "description": "Worst-case time from stop command to safe state.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "power": {
+      "description": "Electrical characteristics relevant to safe operation.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "voltage_v": { "type": "number", "exclusiveMinimum": 0 },
+        "max_current_a": { "type": "number", "exclusiveMinimum": 0 },
+        "hazard_class": {
+          "description": "Highest physical hazard this device can present. Agents should surface anything above 'none' to a human before first use.",
+          "type": "string",
+          "enum": ["none", "thermal", "mechanical", "electrical", "chemical", "optical", "biological", "radiation"]
+        }
+      }
+    },
+    "discovery": {
+      "description": "How this device announces itself to the Discovery Layer registry.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registry_url": {
+          "description": "Base URL of the Open-MHS registry this device registers with.",
+          "type": "string",
+          "format": "uri"
+        },
+        "heartbeat_interval_s": {
+          "description": "Seconds between keepalives. The registry marks a device stale after two missed intervals.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "default": 30
+        }
+      }
+    },
+    "metadata": {
+      "description": "Vendor-specific extension data. Ignored by the middleware; never consulted for safety decisions.",
+      "type": "object"
+    }
+  },
+
+  "$defs": {
+    "identifier": {
+      "description": "Lowercase, machine-addressable identifier. Stable across restarts.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"
+    },
+
+    "datatype": {
+      "description": "Wire type of a value carried by read()/write().",
+      "type": "string",
+      "enum": ["number", "integer", "boolean", "string", "enum", "vector3"]
+    },
+
+    "unit": {
+      "description": "SI-preferred unit symbol. Units are compared literally, so 'deg' and 'rad' are distinct and a mismatch between an actuator and its safety limit is an error.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+
+    "sensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "datatype"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 512 },
+        "datatype": { "$ref": "#/$defs/datatype" },
+        "unit": { "$ref": "#/$defs/unit" },
+        "enum_values": {
+          "description": "Permitted values when datatype is 'enum'.",
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "nominal_range": {
+          "description": "Range the sensor can physically measure. This is a measurement capability, NOT a safety boundary.",
+          "$ref": "#/$defs/range"
+        },
+        "accuracy": {
+          "description": "Absolute measurement error, in the sensor's own unit.",
+          "type": "number",
+          "minimum": 0
+        },
+        "sample_rate_hz": {
+          "description": "Maximum useful polling rate. Reading faster returns stale values.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "datatype": { "const": "enum" } }, "required": ["datatype"] },
+          "then": { "required": ["enum_values"] }
+        },
+        {
+          "if": {
+            "properties": { "datatype": { "enum": ["number", "integer", "vector3"] } },
+            "required": ["datatype"]
+          },
+          "then": { "required": ["unit"] }
+        }
+      ]
+    },
+
+    "actuator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "datatype"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 512 },
+        "datatype": { "$ref": "#/$defs/datatype" },
+        "unit": { "$ref": "#/$defs/unit" },
+        "enum_values": {
+          "description": "Permitted values when datatype is 'enum'.",
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "write_mode": {
+          "description": "Whether a written value is an absolute setpoint or a delta from the current state.",
+          "type": "string",
+          "enum": ["absolute", "relative"],
+          "default": "absolute"
+        },
+        "default": {
+          "description": "Power-on / reset value. Must fall inside this actuator's safety limit.",
+          "type": ["number", "boolean", "string", "array"]
+        },
+        "feedback_sensor": {
+          "$ref": "#/$defs/identifier",
+          "description": "Sensor id reporting this actuator's achieved state. Required for closed-loop verification of a write."
+        },
+        "settle_time_ms": {
+          "description": "Time after a write before the feedback sensor reflects the commanded value.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "requires_confirmation": {
+          "description": "When true, the middleware must obtain explicit human approval before dispatching a write to this actuator.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "datatype": { "const": "enum" } }, "required": ["datatype"] },
+          "then": { "required": ["enum_values"] }
+        },
+        {
+          "if": {
+            "properties": { "datatype": { "enum": ["number", "integer", "vector3"] } },
+            "required": ["datatype"]
+          },
+          "then": { "required": ["unit"] }
+        }
+      ]
+    },
+
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+
+    "safety_limit": {
+      "description": "Boundary for exactly one target id. Bounds are INCLUSIVE: a write equal to min or max is permitted.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target"],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/identifier",
+          "description": "The actuator id this limit governs. Must match an entry in actuators[]."
+        },
+        "unit": {
+          "$ref": "#/$defs/unit",
+          "description": "Must be identical to the target actuator's unit. Unit mismatch is a validation error, not a conversion request."
+        },
+        "min": {
+          "description": "Inclusive lower bound. Required for numeric targets.",
+          "type": "number"
+        },
+        "max": {
+          "description": "Inclusive upper bound. Required for numeric targets.",
+          "type": "number"
+        },
+        "allowed_values": {
+          "description": "Exhaustive permitted set for enum, boolean, or string targets.",
+          "type": "array",
+          "items": { "type": ["string", "boolean", "number"] },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "max_rate": {
+          "description": "Maximum rate of change, in target units per second. Guards against commanded step changes that are individually in-range but physically destructive.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_duration_s": {
+          "description": "Longest time the target may be held away from its default before the middleware forces it back.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "enforcement": {
+          "description": "Where the limit is enforced. 'hardware' means the device physically cannot exceed it; 'software' means only this specification stands between the agent and the hardware.",
+          "type": "string",
+          "enum": ["hardware", "firmware", "software"],
+          "default": "software"
+        },
+        "on_violation": {
+          "description": "Middleware behavior when a write falls outside the bound. 'reject' is the default and the only option that never surprises the agent. 'clamp' silently rewrites the value. 'estop' halts the device.",
+          "type": "string",
+          "enum": ["reject", "clamp", "estop"],
+          "default": "reject"
+        },
+        "rationale": {
+          "description": "Why this bound exists. Written for the human reviewing the tag, not the agent.",
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "oneOf": [
+        {
+          "title": "Numeric bound",
+          "required": ["min", "max", "unit"],
+          "not": { "required": ["allowed_values"] }
+        },
+        {
+          "title": "Discrete bound",
+          "required": ["allowed_values"],
+          "allOf": [
+            { "not": { "required": ["min"] } },
+            { "not": { "required": ["max"] } }
+          ]
+        }
+      ]
+    }
+  }
+}

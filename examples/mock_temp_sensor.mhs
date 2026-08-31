@@ -1,0 +1,53 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "mock-temp-01",
+  "name": "Mock Ambient Temperature Sensor",
+  "type": "sensor_array",
+  "vendor": "Open-MHS Reference",
+  "model": "MOCK-T1",
+  "firmware_version": "0.1.0",
+  "description": "Simulated two-channel environmental sensor used to exercise the Discovery and Execution layers with no hardware attached. Read-only: it declares no actuators, so write() is rejected for every target.",
+  "driver": {
+    "transport": "mock",
+    "module": "drivers.mock_temp_sensor:MockTempSensor",
+    "timeout_ms": 500
+  },
+  "sensors": [
+    {
+      "id": "ambient_temp",
+      "name": "Ambient temperature",
+      "description": "Dry-bulb air temperature at the sensor housing.",
+      "datatype": "number",
+      "unit": "degC",
+      "nominal_range": { "min": -40.0, "max": 125.0 },
+      "accuracy": 0.5,
+      "sample_rate_hz": 2.0
+    },
+    {
+      "id": "relative_humidity",
+      "name": "Relative humidity",
+      "datatype": "number",
+      "unit": "percent",
+      "nominal_range": { "min": 0.0, "max": 100.0 },
+      "accuracy": 3.0,
+      "sample_rate_hz": 2.0
+    },
+    {
+      "id": "link_state",
+      "name": "Transport link state",
+      "datatype": "enum",
+      "enum_values": ["online", "degraded", "offline"]
+    }
+  ],
+  "actuators": [],
+  "safety_limits": [],
+  "power": {
+    "voltage_v": 3.3,
+    "max_current_a": 0.05,
+    "hazard_class": "none"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 15
+  }
+}

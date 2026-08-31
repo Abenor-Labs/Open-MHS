@@ -1,0 +1,16 @@
+# Normalise line endings in the repository. Without this, a Windows checkout commits CRLF
+# and every Linux contributor sees the whole tree as modified.
+* text=auto eol=lf
+
+# Binary assets: never touch these.
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp4 binary
+*.ico binary
+
+# Capability tags are JSON.
+*.mhs text eol=lf linguist-language=JSON
+
+# Keep the demo out of GitHub's language statistics.
+examples/pybullet_demo/** linguist-documentation

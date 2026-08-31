@@ -1,0 +1,10 @@
+# Dependencies for the visual demo only. The Open-MHS middleware, drivers and test suite
+# do not need any of this -- install it just to run examples/pybullet_demo/auto_demo.py.
+#
+#   pip install -r examples/pybullet_demo/requirements-demo.txt
+
+pybullet>=3.2.5,<4.0
+
+# Frame capture and MP4 encoding for the auto-exported promo video.
+opencv-python>=4.8,<5.0
+numpy>=1.24

@@ -1,0 +1,126 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "gcode-arm-01",
+  "name": "G-code Bench Arm (serial)",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "REF-GCODE-2A",
+  "firmware_version": "marlin-2.1",
+  "description": "Two-axis arm driven over a real serial port with Marlin-style G-code. Joint 1 is the X axis, joint 2 is the Y axis, and the gripper is driven by the tool-control codes M3/M5. Positions are read back with M114 and motor temperature with M105.",
+  "driver": {
+    "transport": "serial",
+    "address": "/dev/ttyUSB0",
+    "module": "drivers.serial_robotic_arm:SerialRoboticArm",
+    "timeout_ms": 2000
+  },
+  "sensors": [
+    {
+      "id": "joint_1_actual",
+      "name": "X axis position (measured)",
+      "description": "Reported by M114.",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": { "min": -200.0, "max": 200.0 },
+      "accuracy": 0.1,
+      "sample_rate_hz": 10.0
+    },
+    {
+      "id": "joint_2_actual",
+      "name": "Y axis position (measured)",
+      "description": "Reported by M114.",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": { "min": -200.0, "max": 200.0 },
+      "accuracy": 0.1,
+      "sample_rate_hz": 10.0
+    },
+    {
+      "id": "motor_temp",
+      "name": "Driver temperature",
+      "description": "Reported by M105.",
+      "datatype": "number",
+      "unit": "degC",
+      "nominal_range": { "min": -10.0, "max": 150.0 },
+      "accuracy": 1.0,
+      "sample_rate_hz": 1.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "joint_1",
+      "name": "X axis (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_1_actual",
+      "settle_time_ms": 500
+    },
+    {
+      "id": "joint_2",
+      "name": "Y axis (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_2_actual",
+      "settle_time_ms": 500
+    },
+    {
+      "id": "gripper",
+      "name": "Gripper state",
+      "datatype": "enum",
+      "enum_values": ["open", "closed"],
+      "default": "open",
+      "settle_time_ms": 400,
+      "requires_confirmation": true
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "joint_1",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "max_rate": 30.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Marlin will happily accept G1 X500 and drive the axis into the frame. Nothing in the firmware stops it, so this bound is the only thing that does."
+    },
+    {
+      "target": "joint_2",
+      "unit": "deg",
+      "min": -135.0,
+      "max": 135.0,
+      "max_rate": 45.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Cable harness binds past +/-135 deg."
+    },
+    {
+      "target": "gripper",
+      "allowed_values": ["open", "closed"],
+      "enforcement": "firmware",
+      "on_violation": "reject",
+      "rationale": "M3 and M5 are the only tool states this firmware implements."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": {
+      "joint_1": 0.0,
+      "joint_2": 0.0,
+      "gripper": "open"
+    },
+    "max_stop_time_ms": 2000
+  },
+  "power": {
+    "voltage_v": 24.0,
+    "max_current_a": 5.0,
+    "hazard_class": "mechanical"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 10
+  }
+}

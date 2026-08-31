@@ -1,0 +1,49 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "heater-01",
+  "name": "Reaction Block Heater (clamping policy)",
+  "type": "thermal_controller",
+  "description": "Declares on_violation 'clamp': an over-range setpoint is reduced to the nearest safe bound and executed, rather than refused. Appropriate here because a heater that ignores an over-temperature command is safer than one that stops regulating mid-reaction.",
+  "driver": {
+    "transport": "mock",
+    "module": "tests.conftest:ClampingHeater"
+  },
+  "sensors": [
+    {
+      "id": "block_temp",
+      "name": "Block temperature",
+      "datatype": "number",
+      "unit": "degC",
+      "nominal_range": { "min": -10.0, "max": 200.0 },
+      "accuracy": 0.5,
+      "sample_rate_hz": 1.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "heater_setpoint",
+      "name": "Heater setpoint",
+      "datatype": "number",
+      "unit": "degC",
+      "default": 20.0,
+      "feedback_sensor": "block_temp"
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "heater_setpoint",
+      "unit": "degC",
+      "min": 15.0,
+      "max": 80.0,
+      "max_rate": 5.0,
+      "enforcement": "software",
+      "on_violation": "clamp",
+      "rationale": "The solvent boils at 82 degC. Above 80 the block is driven back to 80 rather than shutting off, because losing temperature control mid-reaction is the worse failure."
+    }
+  ],
+  "power": {
+    "voltage_v": 24.0,
+    "max_current_a": 6.0,
+    "hazard_class": "thermal"
+  }
+}

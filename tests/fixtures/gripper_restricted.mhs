@@ -1,0 +1,30 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "gripper-01",
+  "name": "Three-State Gripper Under Restricted Policy",
+  "type": "gripper",
+  "description": "The hardware supports a 'vent' state, but site policy forbids it: allowed_values is a strict subset of enum_values. Exercises a discrete safety violation (-32001) as distinct from a value the actuator could never accept at all (-32602).",
+  "driver": {
+    "transport": "mock",
+    "module": "tests.conftest:GripperDevice"
+  },
+  "sensors": [],
+  "actuators": [
+    {
+      "id": "gripper",
+      "name": "Gripper state",
+      "datatype": "enum",
+      "enum_values": ["open", "closed", "vent"],
+      "default": "open"
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "gripper",
+      "allowed_values": ["open", "closed"],
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "The 'vent' state releases line pressure into the enclosure. Mechanically available, operationally forbidden."
+    }
+  ]
+}

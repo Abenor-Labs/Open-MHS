@@ -1,0 +1,50 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "pump-01",
+  "name": "Reagent Pump (stop-on-violation policy)",
+  "type": "pump",
+  "description": "Declares on_violation 'estop': an out-of-range flow command is treated as evidence that the controlling agent has lost the plot, so the pump is driven to zero flow rather than merely refusing the command.",
+  "driver": {
+    "transport": "mock",
+    "module": "tests.conftest:EstopPump"
+  },
+  "sensors": [
+    {
+      "id": "flow_actual",
+      "name": "Measured flow",
+      "datatype": "number",
+      "unit": "mL/min",
+      "nominal_range": { "min": 0.0, "max": 250.0 },
+      "accuracy": 0.5
+    }
+  ],
+  "actuators": [
+    {
+      "id": "flow_rate",
+      "name": "Commanded flow",
+      "datatype": "number",
+      "unit": "mL/min",
+      "default": 0.0,
+      "feedback_sensor": "flow_actual"
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "flow_rate",
+      "unit": "mL/min",
+      "min": 0.0,
+      "max": 100.0,
+      "enforcement": "software",
+      "on_violation": "estop",
+      "rationale": "Above 100 mL/min the reagent line separates at the fitting. A command that far out of range means the caller's model is wrong, so stop the pump rather than continue at any rate."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": { "flow_rate": 0.0 },
+    "max_stop_time_ms": 500
+  },
+  "power": {
+    "hazard_class": "chemical"
+  }
+}

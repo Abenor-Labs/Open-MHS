@@ -1,0 +1,26 @@
+# Open-MHS runtime + development dependencies
+# Pin ranges, not exact versions: drivers are vendored by third parties.
+
+# --- Middleware server (Discovery + Execution layers) ---
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+pydantic>=2.6,<3.0
+
+# --- Capability Tag validation ---
+jsonschema>=4.21,<5.0
+
+# --- Driver transport ---
+httpx>=0.27,<1.0
+# Real serial hardware. Optional at runtime: imported only when a serial port is opened,
+# so a mock-only install works without it.
+pyserial>=3.5,<4.0
+
+# --- MCP adapter (official Anthropic Model Context Protocol SDK) ---
+mcp>=1.9,<2.0
+# mcp requires anyio 4.x; an environment left on anyio 3.x fails at server start with
+# "TypeError: 'function' object is not subscriptable".
+anyio>=4.5
+
+# --- Testing ---
+pytest>=8.0,<9.0
+pytest-asyncio>=0.23,<1.0

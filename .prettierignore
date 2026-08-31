@@ -1,0 +1,3 @@
+# Prettier reflows Markdown tables and strips HTML blocks used for the README hero.
+# Leave the docs alone.
+*.md
