@@ -8,11 +8,11 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-8A63D2.svg)](https://modelcontextprotocol.io)
-[![Tests passing](https://img.shields.io/badge/tests-180%20passing-brightgreen.svg)](#testing)
+[![Tests passing](https://img.shields.io/badge/tests-184%20passing-brightgreen.svg)](#testing)
 
 *An agent asks for 300°. The arm is bounded to 90°. Nothing moves.*
 
-**180 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
+**184 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
 serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
 
 </div>
@@ -323,7 +323,7 @@ produce a misleading recording.
 
 **Quality**
 
-- [x] 180 tests, no hardware required
+- [x] 184 tests, no hardware required
 - [x] CI on Python 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
 
 ### Roadmap
@@ -356,7 +356,7 @@ drivers/      driver contract, in-memory transport, real serial (G-code) transpo
 mcp_adapter/  MCP server wrapping the HTTP surface
 examples/     worked capability tags and the PyBullet demo
 docs/         specification documentation
-tests/        180 tests, no hardware required
+tests/        184 tests, no hardware required
 ```
 
 **Error codes**
@@ -383,7 +383,7 @@ Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 ## Testing
 
 ```bash
-pytest                # 180 tests, no hardware required
+pytest                # 184 tests, no hardware required
 ruff check .
 ```
 
@@ -396,7 +396,7 @@ test → real /rpc route → real driver class → FAKE transport
                                              ^^^^ only this is fake
 ```
 
-What the 180 tests actually cover:
+What the 184 tests actually cover:
 
 | Area | What is proved |
 | --- | --- |

@@ -1,0 +1,171 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "panda-arm-01",
+  "name": "Franka Panda \u2014 robosuite digital twin",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "robosuite Lift / Panda / OSC_POSE",
+  "firmware_version": "robosuite-1.5.2+mujoco-3.3.7",
+  "description": "A Franka Panda in a MuJoCo digital twin, commanded as a Cartesian tool pose. The safety limits describe a work envelope measured against the real robot, not guessed: 26 of 27 sampled corners hold to within 20 mm. The table top sits at z=0.800 m, so the z floor of 0.83 m is what stops the agent driving the gripper through the table.",
+  "driver": {
+    "transport": "mock",
+    "address": "mujoco://robosuite",
+    "module": "examples.robosuite_demo.panda_arm:PandaArmDevice",
+    "timeout_ms": 8000
+  },
+  "sensors": [
+    {
+      "id": "tcp_x_actual",
+      "name": "Tool X (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "description": "End-effector position from the simulator's robot0_eef_pos observation.",
+      "nominal_range": {
+        "min": -0.8,
+        "max": 0.8
+      },
+      "accuracy": 0.02,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "tcp_y_actual",
+      "name": "Tool Y (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.8,
+        "max": 0.8
+      },
+      "accuracy": 0.02,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "tcp_z_actual",
+      "name": "Tool Z (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.6
+      },
+      "accuracy": 0.02,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "gripper_actual",
+      "name": "Gripper state",
+      "datatype": "enum",
+      "enum_values": [
+        "open",
+        "closed"
+      ]
+    },
+    {
+      "id": "grasping",
+      "name": "Block currently held",
+      "datatype": "string",
+      "description": "Name of the block the gripper actually has, by contact check in the simulator, or 'nothing'. Not an assumption."
+    }
+  ],
+  "actuators": [
+    {
+      "id": "tcp_x",
+      "name": "Tool X (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "tcp_x_actual",
+      "settle_time_ms": 4000
+    },
+    {
+      "id": "tcp_y",
+      "name": "Tool Y (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "tcp_y_actual",
+      "settle_time_ms": 4000
+    },
+    {
+      "id": "tcp_z",
+      "name": "Tool Z (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 1.05,
+      "feedback_sensor": "tcp_z_actual",
+      "settle_time_ms": 4000
+    },
+    {
+      "id": "gripper_state",
+      "name": "Gripper",
+      "datatype": "enum",
+      "enum_values": [
+        "open",
+        "closed"
+      ],
+      "default": "open",
+      "feedback_sensor": "gripper_actual",
+      "settle_time_ms": 1200,
+      "requires_confirmation": true
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "tcp_x",
+      "unit": "m",
+      "min": -0.22,
+      "max": 0.22,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Measured reachable span. Past +/-0.22 m the arm cannot hold the pose accurately and the declared feedback tolerance stops being true."
+    },
+    {
+      "target": "tcp_y",
+      "unit": "m",
+      "min": -0.22,
+      "max": 0.22,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "As tcp_x. The far corner at (0.25, -0.25, 0.83) missed by 23 mm, so the bound was pulled in to where the arm is actually accurate."
+    },
+    {
+      "target": "tcp_z",
+      "unit": "m",
+      "min": 0.83,
+      "max": 1.15,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "THE TABLE TOP IS AT z=0.800 m. Below 0.83 m the gripper is driven into the table. MuJoCo will happily simulate that collision and a real Panda would happily attempt it; this bound is the only thing that does not."
+    },
+    {
+      "target": "gripper_state",
+      "allowed_values": [
+        "open",
+        "closed"
+      ],
+      "enforcement": "firmware",
+      "on_violation": "reject",
+      "rationale": "Two commandable states. Closing on a hand is why this actuator also requires human confirmation."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": {
+      "tcp_x": 0.0,
+      "tcp_y": 0.0,
+      "tcp_z": 1.1,
+      "gripper_state": "open"
+    },
+    "max_stop_time_ms": 4000
+  },
+  "power": {
+    "hazard_class": "mechanical"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 15
+  }
+}

@@ -42,3 +42,6 @@ registry.state.json
 
 # Generated promo video (regenerate with examples/pybullet_demo/auto_demo.py)
 examples/pybullet_demo/*.mp4
+
+# Local MCP wiring: contains the middleware token.
+.mcp.json

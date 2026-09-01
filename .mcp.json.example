@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "open-mhs": {
+      "command": "/absolute/path/to/python",
+      "args": [
+        "-m",
+        "mcp_adapter.server"
+      ],
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/Open-MHS",
+        "OPEN_MHS_URL": "http://127.0.0.1:8000",
+        "OPEN_MHS_AUTH_TOKEN": "the-token-the-server-was-started-with"
+      }
+    }
+  }
+}

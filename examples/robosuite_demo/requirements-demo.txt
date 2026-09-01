@@ -1,0 +1,15 @@
+# Dependencies for the robosuite digital twin only. The Open-MHS middleware, drivers and
+# test suite need none of this.
+#
+#   pip install -r examples/robosuite_demo/requirements-demo.txt
+
+robosuite==1.5.2
+
+# PIN THIS. robosuite 1.5.2 declares `mujoco>=3.3.0`, but MuJoCo 3.4 renamed
+# `MjData.qM` to `MjData.M`, which robosuite's operational-space controller still calls.
+# Resolving to the newest MuJoCo (3.12 at time of writing) crashes on env.reset() with
+#   AttributeError: 'MjData' object has no attribute 'qM'
+mujoco==3.3.7
+
+opencv-python>=4.8,<5.0
+numpy>=1.24

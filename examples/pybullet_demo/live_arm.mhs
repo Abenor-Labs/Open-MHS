@@ -1,0 +1,268 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "kuka-live-01",
+  "name": "KUKA iiwa (live PyBullet session)",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "kuka_iiwa/model.urdf",
+  "firmware_version": "pybullet-live",
+  "description": "A 7-axis KUKA iiwa running live in a PyBullet window, driven through the real Open-MHS middleware. Every declared bound is deliberately tighter than the one in the robot's own URDF: the simulator would happily accept the wider value, so the capability tag is the only thing that stops it.",
+  "driver": {
+    "transport": "mock",
+    "address": "pybullet://gui",
+    "module": "examples.pybullet_demo.live_arm:LiveArm",
+    "timeout_ms": 2000
+  },
+  "sensors": [
+    {
+      "id": "joint_0_actual",
+      "name": "Joint 0 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -170.0,
+        "max": 170.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_1_actual",
+      "name": "Joint 1 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -120.0,
+        "max": 120.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_2_actual",
+      "name": "Joint 2 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -170.0,
+        "max": 170.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_3_actual",
+      "name": "Joint 3 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -120.0,
+        "max": 120.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_4_actual",
+      "name": "Joint 4 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -170.0,
+        "max": 170.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_5_actual",
+      "name": "Joint 5 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -120.0,
+        "max": 120.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "joint_6_actual",
+      "name": "Joint 6 angle (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "nominal_range": {
+        "min": -175.0,
+        "max": 175.0
+      },
+      "accuracy": 0.5,
+      "sample_rate_hz": 60.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "joint_0",
+      "name": "Joint 0 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_0_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_1",
+      "name": "Joint 1 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_1_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_2",
+      "name": "Joint 2 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_2_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_3",
+      "name": "Joint 3 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_3_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_4",
+      "name": "Joint 4 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_4_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_5",
+      "name": "Joint 5 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_5_actual",
+      "settle_time_ms": 2500
+    },
+    {
+      "id": "joint_6",
+      "name": "Joint 6 (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "joint_6_actual",
+      "settle_time_ms": 2500
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "joint_0",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "max_rate": 45.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Base rotation past +/-90 sweeps the operator's side of the bench. The URDF itself permits +/-170 deg."
+    },
+    {
+      "target": "joint_1",
+      "unit": "deg",
+      "min": -75.0,
+      "max": 75.0,
+      "max_rate": 40.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Shoulder past +/-75 puts the elbow below bench height. The URDF itself permits +/-120 deg."
+    },
+    {
+      "target": "joint_2",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "max_rate": 45.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Upper-arm roll is bounded to keep the cable harness from binding. The URDF itself permits +/-170 deg."
+    },
+    {
+      "target": "joint_3",
+      "unit": "deg",
+      "min": -95.0,
+      "max": 95.0,
+      "max_rate": 40.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Elbow past +/-95 folds the forearm into the shoulder housing. The URDF itself permits +/-120 deg."
+    },
+    {
+      "target": "joint_4",
+      "unit": "deg",
+      "min": -90.0,
+      "max": 90.0,
+      "max_rate": 60.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Forearm roll bounded to protect the tool-side cable loom. The URDF itself permits +/-170 deg."
+    },
+    {
+      "target": "joint_5",
+      "unit": "deg",
+      "min": -75.0,
+      "max": 75.0,
+      "max_rate": 60.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Wrist pitch past +/-75 collides with the mounting flange. The URDF itself permits +/-120 deg."
+    },
+    {
+      "target": "joint_6",
+      "unit": "deg",
+      "min": -120.0,
+      "max": 120.0,
+      "max_rate": 90.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Tool roll bounded to the rated travel of the slip ring. The URDF itself permits +/-175 deg."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": {
+      "joint_0": 0.0,
+      "joint_1": 0.0,
+      "joint_2": 0.0,
+      "joint_3": 0.0,
+      "joint_4": 0.0,
+      "joint_5": 0.0,
+      "joint_6": 0.0
+    },
+    "max_stop_time_ms": 2000
+  },
+  "power": {
+    "voltage_v": 48.0,
+    "max_current_a": 12.0,
+    "hazard_class": "mechanical"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 15
+  }
+}

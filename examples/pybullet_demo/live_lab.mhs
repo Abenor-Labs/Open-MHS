@@ -1,0 +1,306 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "kuka-lab-01",
+  "name": "KUKA iiwa \u2014 bench cell (live)",
+  "type": "robotic_arm",
+  "vendor": "Open-MHS Reference",
+  "model": "kuka_iiwa/model.urdf",
+  "firmware_version": "pybullet-live",
+  "description": "A 7-axis KUKA iiwa mounted on a lab bench, driven live through the Open-MHS middleware. The agent commands a tool pose in metres, not motor angles, so the safety limits describe a physical WORK ENVELOPE: a box above the bench that the tool may not leave. The arm can reach well outside it \u2014 the capability tag is the only thing keeping the tool off the bench surface and away from the operator's side.",
+  "driver": {
+    "transport": "mock",
+    "address": "pybullet://gui",
+    "module": "examples.pybullet_demo.live_arm:LiveArm",
+    "timeout_ms": 5000
+  },
+  "sensors": [
+    {
+      "id": "tcp_x_actual",
+      "name": "Tool X (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "accuracy": 0.045,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "tcp_y_actual",
+      "name": "Tool Y (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 1.0
+      },
+      "accuracy": 0.045,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "tcp_z_actual",
+      "name": "Tool Z (measured)",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.4
+      },
+      "accuracy": 0.045,
+      "sample_rate_hz": 60.0
+    },
+    {
+      "id": "gripper_state",
+      "name": "Gripper state",
+      "datatype": "enum",
+      "enum_values": [
+        "open",
+        "closed"
+      ]
+    },
+    {
+      "id": "holding",
+      "name": "Object currently held",
+      "datatype": "string",
+      "description": "Name of the grasped object, or 'nothing'."
+    },
+    {
+      "id": "nearest_object",
+      "name": "Nearest graspable object",
+      "datatype": "string",
+      "description": "What the tool is closest to. The cell's stand-in for a vision system."
+    },
+    {
+      "id": "nearest_object_range",
+      "name": "Range to nearest object",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 3.0
+      },
+      "accuracy": 0.002
+    },
+    {
+      "id": "red_cube_x",
+      "name": "red cube X (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.2
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "red_cube_y",
+      "name": "red cube Y (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "red_cube_z",
+      "name": "red cube Z (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.4
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "green_cube_x",
+      "name": "green cube X (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.2
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "green_cube_y",
+      "name": "green cube Y (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "green_cube_z",
+      "name": "green cube Z (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.4
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "blue_cube_x",
+      "name": "blue cube X (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.2
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "blue_cube_y",
+      "name": "blue cube Y (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    },
+    {
+      "id": "blue_cube_z",
+      "name": "blue cube Z (vision)",
+      "description": "Reported by the cell's part-locating system.",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 1.4
+      },
+      "accuracy": 0.002,
+      "sample_rate_hz": 30.0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "tcp_x",
+      "name": "Tool X (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 0.6,
+      "feedback_sensor": "tcp_x_actual",
+      "settle_time_ms": 3000
+    },
+    {
+      "id": "tcp_y",
+      "name": "Tool Y (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "tcp_y_actual",
+      "settle_time_ms": 3000
+    },
+    {
+      "id": "tcp_z",
+      "name": "Tool Z (commanded)",
+      "datatype": "number",
+      "unit": "m",
+      "write_mode": "absolute",
+      "default": 0.95,
+      "feedback_sensor": "tcp_z_actual",
+      "settle_time_ms": 3000
+    },
+    {
+      "id": "gripper",
+      "name": "Gripper",
+      "datatype": "enum",
+      "enum_values": [
+        "open",
+        "closed"
+      ],
+      "default": "open",
+      "feedback_sensor": "gripper_state",
+      "settle_time_ms": 600,
+      "requires_confirmation": true
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "tcp_x",
+      "unit": "m",
+      "min": 0.44,
+      "max": 0.76,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "Inside 0.44 m the tool folds back over the arm's own mount and the wrist loses authority; past 0.76 m it reaches over the far edge of the bench. Both bounds were measured, not guessed: the arm cannot hold a pose accurately outside them."
+    },
+    {
+      "target": "tcp_y",
+      "unit": "m",
+      "min": -0.28,
+      "max": 0.28,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "The bench is 1.0 m wide, but the operator stands to the +Y side. Travel is bounded well inside the bench edges on both sides."
+    },
+    {
+      "target": "tcp_z",
+      "unit": "m",
+      "min": 0.67,
+      "max": 1.05,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "The bench surface is at 0.626 m. Anything below 0.67 m drives the tool into the bench top; above 1.05 m the arm is near full extension and loses stiffness."
+    },
+    {
+      "target": "gripper",
+      "allowed_values": [
+        "open",
+        "closed"
+      ],
+      "enforcement": "firmware",
+      "on_violation": "reject",
+      "rationale": "Two mechanically valid states. Closing on a hand is the reason this actuator also requires human confirmation."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": {
+      "tcp_x": 0.6,
+      "tcp_y": 0.0,
+      "tcp_z": 1.0,
+      "gripper": "open"
+    },
+    "max_stop_time_ms": 3000
+  },
+  "power": {
+    "voltage_v": 48.0,
+    "max_current_a": 12.0,
+    "hazard_class": "mechanical"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 15
+  }
+}

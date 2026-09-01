@@ -1,0 +1,254 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "cv-camera-01",
+  "name": "Bench vision \u2014 agentview RGB-D, four blocks",
+  "type": "camera",
+  "vendor": "Open-MHS Reference",
+  "model": "robosuite agentview 256x256 RGB-D",
+  "description": "A read-only perception device. For each coloured block it segments the block's hue in the rendered RGB frame, samples the depth buffer at the blob centroid, and deprojects to world coordinates using the camera's real intrinsics and extrinsics. This is genuine vision, not a lookup: measured error against ground truth is about 29 mm, because the blob centroid lies on the block's visible FACE rather than its centre. Occlusion is reported PER BLOCK \u2014 if the arm is covering one, that block's <name>_source reads 'ground_truth' while the others still read 'vision'. The device never presents an estimate it did not make.",
+  "driver": {
+    "transport": "mock",
+    "address": "mujoco://agentview",
+    "module": "examples.robosuite_demo.cv_camera:CVCameraDevice",
+    "timeout_ms": 5000
+  },
+  "sensors": [
+    {
+      "id": "red_block_x",
+      "name": "red block X",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "red_block_y",
+      "name": "red block Y",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "red_block_z",
+      "name": "red block Z",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.7,
+        "max": 1.4
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "red_block_source",
+      "name": "red block: how the pose was obtained",
+      "datatype": "enum",
+      "enum_values": [
+        "vision",
+        "ground_truth"
+      ],
+      "description": "'vision' means the camera saw it this frame. 'ground_truth' means it was occluded and the simulator was asked instead."
+    },
+    {
+      "id": "red_block_pixels",
+      "name": "red block: pixels in the blob",
+      "datatype": "integer",
+      "unit": "px",
+      "nominal_range": {
+        "min": 0,
+        "max": 65536
+      },
+      "description": "Zero means nothing was detected this frame."
+    },
+    {
+      "id": "green_block_x",
+      "name": "green block X",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "green_block_y",
+      "name": "green block Y",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "green_block_z",
+      "name": "green block Z",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.7,
+        "max": 1.4
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "green_block_source",
+      "name": "green block: how the pose was obtained",
+      "datatype": "enum",
+      "enum_values": [
+        "vision",
+        "ground_truth"
+      ],
+      "description": "'vision' means the camera saw it this frame. 'ground_truth' means it was occluded and the simulator was asked instead."
+    },
+    {
+      "id": "green_block_pixels",
+      "name": "green block: pixels in the blob",
+      "datatype": "integer",
+      "unit": "px",
+      "nominal_range": {
+        "min": 0,
+        "max": 65536
+      },
+      "description": "Zero means nothing was detected this frame."
+    },
+    {
+      "id": "blue_block_x",
+      "name": "blue block X",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "blue_block_y",
+      "name": "blue block Y",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "blue_block_z",
+      "name": "blue block Z",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.7,
+        "max": 1.4
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "blue_block_source",
+      "name": "blue block: how the pose was obtained",
+      "datatype": "enum",
+      "enum_values": [
+        "vision",
+        "ground_truth"
+      ],
+      "description": "'vision' means the camera saw it this frame. 'ground_truth' means it was occluded and the simulator was asked instead."
+    },
+    {
+      "id": "blue_block_pixels",
+      "name": "blue block: pixels in the blob",
+      "datatype": "integer",
+      "unit": "px",
+      "nominal_range": {
+        "min": 0,
+        "max": 65536
+      },
+      "description": "Zero means nothing was detected this frame."
+    },
+    {
+      "id": "yellow_block_x",
+      "name": "yellow block X",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "yellow_block_y",
+      "name": "yellow block Y",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": -0.6,
+        "max": 0.6
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "yellow_block_z",
+      "name": "yellow block Z",
+      "datatype": "number",
+      "unit": "m",
+      "nominal_range": {
+        "min": 0.7,
+        "max": 1.4
+      },
+      "accuracy": 0.035,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "yellow_block_source",
+      "name": "yellow block: how the pose was obtained",
+      "datatype": "enum",
+      "enum_values": [
+        "vision",
+        "ground_truth"
+      ],
+      "description": "'vision' means the camera saw it this frame. 'ground_truth' means it was occluded and the simulator was asked instead."
+    },
+    {
+      "id": "yellow_block_pixels",
+      "name": "yellow block: pixels in the blob",
+      "datatype": "integer",
+      "unit": "px",
+      "nominal_range": {
+        "min": 0,
+        "max": 65536
+      },
+      "description": "Zero means nothing was detected this frame."
+    }
+  ],
+  "actuators": [],
+  "safety_limits": [],
+  "power": {
+    "hazard_class": "none"
+  },
+  "discovery": {
+    "registry_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_s": 15
+  }
+}
