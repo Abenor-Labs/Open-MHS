@@ -24,10 +24,10 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
 
 from server.errors import InvalidParams, SafetyLimitViolation
-from server.models import Actuator, SafetyLimit
+from server.models import Actuator, LimitCondition, SafetyLimit
 
 log = logging.getLogger("open_mhs.safety")
 
@@ -127,6 +127,44 @@ def resolve_absolute(actuator: Actuator, value: Any, current: Any) -> Any:
     return current + value
 
 
+def condition_targets(limit: SafetyLimit) -> list[str]:
+    """Channels a caller must read before this limit can be evaluated. Usually empty."""
+    if not limit.conditions:
+        return []
+    return sorted({condition.when_target for condition in limit.conditions})
+
+
+def effective_bounds(
+    limit: SafetyLimit, state: Mapping[str, Any] | None
+) -> tuple[float | None, float | None, LimitCondition | None]:
+    """Resolve (min, max, matched condition) for the device's CURRENT state.
+
+    Conditions are evaluated in declaration order and the first match wins, so a tag reads
+    top-to-bottom like the rules it is describing. A condition whose channel is missing
+    from `state` is skipped rather than guessed at: the base bound is the stricter promise
+    the tag already made, and falling back to it can only ever refuse more, never less.
+    """
+    if not limit.conditions or limit.min is None or limit.max is None:
+        return limit.min, limit.max, None
+    for condition in limit.conditions:
+        if state is None or condition.when_target not in state:
+            continue
+        if _same_value(state[condition.when_target], condition.equals):
+            low = condition.min if condition.min is not None else limit.min
+            high = condition.max if condition.max is not None else limit.max
+            return low, high, condition
+    return limit.min, limit.max, None
+
+
+def _same_value(observed: Any, expected: Any) -> bool:
+    """Compare a reading to a condition's trigger, tolerating int/float/bool spelling."""
+    if isinstance(expected, bool) or isinstance(observed, bool):
+        return bool(observed) is bool(expected)
+    if _is_number(observed) and _is_number(expected):
+        return math.isclose(float(observed), float(expected), rel_tol=1e-9, abs_tol=1e-9)
+    return str(observed) == str(expected)
+
+
 def check_write(
     actuator: Actuator,
     limit: SafetyLimit,
@@ -135,6 +173,7 @@ def check_write(
     current: Any = None,
     elapsed_s: float | None = None,
     device_id: str | None = None,
+    state: Mapping[str, Any] | None = None,
 ) -> SafetyDecision:
     """Evaluate one write and decide what, if anything, may be transmitted.
 
@@ -156,7 +195,7 @@ def check_write(
     if limit.allowed_values is not None:
         return _check_discrete(actuator, limit, absolute, base, device_id)
 
-    decision = _check_range(actuator, limit, absolute, base, device_id)
+    decision = _check_range(actuator, limit, absolute, base, device_id, state)
     return _check_rate(actuator, limit, decision, current, elapsed_s, base, device_id)
 
 
@@ -202,9 +241,13 @@ def _check_range(
     absolute: Any,
     base: dict[str, Any],
     device_id: str | None,
+    state: Mapping[str, Any] | None = None,
 ) -> SafetyDecision:
+    # The envelope may depend on what the device is currently doing. Resolve it against
+    # the observed state FIRST; everything below then treats the result as the bound.
+    low, high, matched = effective_bounds(limit, state)
     components = absolute if isinstance(absolute, list) else [absolute]
-    bounded = [min(max(c, limit.min), limit.max) for c in components]  # type: ignore[type-var]
+    bounded = [min(max(c, low), high) for c in components]  # type: ignore[type-var]
 
     if bounded == components:
         return SafetyDecision(value=absolute, original=absolute)
@@ -213,32 +256,43 @@ def _check_range(
     outside = next(c for c, k in zip(components, bounded) if c != k)
     data = {
         **base,
-        "min": limit.min,
-        "max": limit.max,
+        "min": low,
+        "max": high,
         "unit": limit.unit,
         "enforcement": limit.enforcement,
         "on_violation": limit.on_violation,
         "rationale": limit.rationale,
     }
+    because = ""
+    if matched is not None:
+        data["condition"] = {
+            "when_target": matched.when_target,
+            "equals": matched.equals,
+            "observed": (state or {}).get(matched.when_target),
+            "rationale": matched.rationale,
+        }
+        data["base_min"], data["base_max"] = limit.min, limit.max
+        because = (f" (tightened because {matched.when_target} reads "
+                   f"{(state or {}).get(matched.when_target)!r})")
     message = (
         f"{actuator.id}: {outside}{unit} is outside the inclusive bound "
-        f"[{limit.min}, {limit.max}]{unit}"
+        f"[{low}, {high}]{unit}{because}"
     )
 
     if limit.on_violation != "clamp":
         _raise(limit, message, data, device_id)
 
     value = bounded if isinstance(absolute, list) else bounded[0]
-    bound = "max" if outside > limit.max else "min"  # type: ignore[operator]
+    bound = "max" if outside > high else "min"  # type: ignore[operator]
     log.warning(
         "CLAMPED %s.%s: requested %s, transmitting %s (bound [%s, %s]%s)",
-        device_id or "?", actuator.id, absolute, value, limit.min, limit.max, unit,
+        device_id or "?", actuator.id, absolute, value, low, high, unit,
     )
     return SafetyDecision(
         value=value,
         original=absolute,
         clamped=True,
-        reason=f"{absolute}{unit} was outside [{limit.min}, {limit.max}]{unit}; "
+        reason=f"{absolute}{unit} was outside [{low}, {high}]{unit}{because}; "
                f"clamped to the {bound} bound {value}{unit}",
         details={**data, "clamped_to": value, "bound": bound},
     )

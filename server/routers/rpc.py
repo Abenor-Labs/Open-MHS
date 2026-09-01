@@ -19,6 +19,7 @@ Two independent checks, one implementation in `server.safety`.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any, Awaitable, Callable
 
@@ -43,6 +44,8 @@ from server.models import (
     WriteParams,
 )
 from server.registry import DeviceRecord, Registry
+
+log = logging.getLogger("open_mhs.rpc")
 
 router = APIRouter(tags=["execution"])
 
@@ -129,6 +132,12 @@ async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
     current, elapsed_s = _rate_context(record, params.target, actuator)
     driver = _require_driver(record)
 
+    # A conditional bound depends on what the device is doing right now, so the channels
+    # it names are read before the envelope is resolved. Reading the sensor rather than
+    # trusting the last commanded value is the point: a gripper that was told to close but
+    # did not must not unlock the tighter payload bound.
+    state = await _condition_state(driver, limit, params.device_id)
+
     try:
         decision = safety.check_write(
             actuator,
@@ -137,6 +146,7 @@ async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
             current=current,
             elapsed_s=elapsed_s,
             device_id=params.device_id,
+            state=state,
         )
     except safety.EmergencyStopRequired as exc:
         # The limit asked for a stop, not just a refusal. Run it before answering.
@@ -169,7 +179,37 @@ async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
         response["requested"] = decision.original
         response["clamp_reason"] = decision.reason
         response["clamp_details"] = decision.details
+        # A single obvious field, so a caller that reads nothing else still cannot miss
+        # that the value it asked for is not the value the hardware got.
+        response["warning"] = (
+            f"CLAMPED: {params.target} was commanded to {decision.original} but "
+            f"{decision.value} was transmitted. {decision.reason}"
+        )
     return response
+
+
+async def _condition_state(
+    driver: Any, limit: Any, device_id: str
+) -> dict[str, Any] | None:
+    """Read the channels a conditional bound depends on. None when it has no conditions.
+
+    A channel that cannot be read is omitted rather than defaulted. `effective_bounds`
+    then falls back to the base bound, which is the stricter of the two by construction —
+    so a failed read can only ever make the envelope tighter, never looser.
+    """
+    targets = safety.condition_targets(limit)
+    if not targets:
+        return None
+    state: dict[str, Any] = {}
+    for target in targets:
+        try:
+            state[target] = await driver.read(target)
+        except Exception:  # noqa: BLE001 - an unreadable condition must not open the bound
+            log.warning(
+                "%s: could not read %r for a conditional limit on %s; falling back to the "
+                "base bound", device_id, target, limit.target,
+            )
+    return state
 
 
 async def _run_estop_for_violation(record: DeviceRecord, driver: Any) -> dict[str, Any]:

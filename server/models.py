@@ -85,6 +85,35 @@ class Actuator(_Channel):
     requires_confirmation: bool = False
 
 
+class LimitCondition(Strict):
+    """A tighter bound that applies only while some other channel reads a given value.
+
+    A work envelope is not static. An empty gripper may descend to the table; the same
+    gripper holding a 42 mm block may not, because the payload hangs below the tool and
+    would be driven through the surface. Expressing that needs a bound that depends on
+    device state, not a constant.
+
+    `when_target` names the channel to consult. Prefer a SENSOR over the actuator that
+    drives it: `gripper_state` is what was commanded, `gripper_actual` is what the jaws
+    are actually doing, and a safety bound must follow the world rather than the request.
+    """
+
+    when_target: Identifier
+    equals: str | bool | float
+    min: float | None = None
+    max: float | None = None
+    rationale: str | None = Field(default=None, max_length=512)
+
+    @model_validator(mode="after")
+    def _must_bound_something(self) -> LimitCondition:
+        if self.min is None and self.max is None:
+            raise ValueError(
+                f"condition on {self.when_target}: declares neither min nor max, so it "
+                "changes nothing"
+            )
+        return self
+
+
 class SafetyLimit(Strict):
     """A boundary for exactly one actuator. Bounds are INCLUSIVE."""
 
@@ -95,6 +124,9 @@ class SafetyLimit(Strict):
     allowed_values: list[str | bool | float] | None = Field(default=None, min_length=1)
     max_rate: float | None = Field(default=None, gt=0)
     max_duration_s: float | None = Field(default=None, gt=0)
+    #: Evaluated in order; the FIRST match wins. A condition may only ever NARROW the
+    #: base envelope -- see `_check_conditions`.
+    conditions: list[LimitCondition] | None = Field(default=None, min_length=1)
     enforcement: Literal["hardware", "firmware", "software"] = "software"
     on_violation: Literal["reject", "clamp", "estop"] = "reject"
     rationale: str | None = Field(default=None, max_length=512)
@@ -236,6 +268,7 @@ class CapabilityTag(Strict):
 
         for limit in self.safety_limits:
             self._check_on_violation(limit, self.emergency_stop)
+            self._check_conditions(limit, sensors, actuators)
 
         if self.emergency_stop and self.emergency_stop.safe_state:
             unknown = sorted(set(self.emergency_stop.safe_state) - set(actuators))
@@ -249,6 +282,53 @@ class CapabilityTag(Strict):
                     f"emergency_stop.target {self.emergency_stop.target!r} is not an actuator"
                 )
         return self
+
+    @staticmethod
+    def _check_conditions(
+        limit: SafetyLimit, sensors: dict[str, Any], actuators: dict[str, Any]
+    ) -> None:
+        """Conditional bounds must reference real channels and may only ever TIGHTEN.
+
+        The narrowing rule is the important one. If a condition could widen the envelope,
+        a tag could declare a permissive base bound and then relax it further under some
+        state -- which turns the declared floor into a suggestion. Every condition must be
+        a stricter promise than the one already made, so the base bound is the worst case
+        the device will ever accept and can be read as a guarantee on its own.
+        """
+        if not limit.conditions:
+            return
+        if limit.allowed_values is not None:
+            raise ValueError(
+                f"{limit.target}: conditions bound a numeric range and have no meaning "
+                "for a discrete limit"
+            )
+
+        known = set(sensors) | set(actuators)
+        for condition in limit.conditions:
+            if condition.when_target not in known:
+                raise ValueError(
+                    f"{limit.target}: condition references {condition.when_target!r}, "
+                    "which is not a declared sensor or actuator"
+                )
+            if condition.min is not None and condition.min < limit.min:
+                raise ValueError(
+                    f"{limit.target}: condition on {condition.when_target} sets min "
+                    f"{condition.min} BELOW the base min {limit.min}; a condition may "
+                    "only narrow the envelope, never widen it"
+                )
+            if condition.max is not None and condition.max > limit.max:
+                raise ValueError(
+                    f"{limit.target}: condition on {condition.when_target} sets max "
+                    f"{condition.max} ABOVE the base max {limit.max}; a condition may "
+                    "only narrow the envelope, never widen it"
+                )
+            low = condition.min if condition.min is not None else limit.min
+            high = condition.max if condition.max is not None else limit.max
+            if low >= high:
+                raise ValueError(
+                    f"{limit.target}: condition on {condition.when_target} leaves an "
+                    f"empty envelope [{low}, {high}]"
+                )
 
     @staticmethod
     def _check_on_violation(limit: SafetyLimit, estop: EmergencyStop | None) -> None:

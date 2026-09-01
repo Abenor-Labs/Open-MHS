@@ -240,6 +240,58 @@
         "max": 65536
       },
       "description": "Zero means nothing was detected this frame."
+    },
+    {
+      "id": "red_block_yaw",
+      "name": "red_block yaw",
+      "datatype": "number",
+      "unit": "deg",
+      "description": "Yaw about world Z, in [0, 90). Taken from the minimum-area rectangle of the colour silhouette, with its corners deprojected to world coordinates first - the raw image-space angle is not the world angle, because the camera views the table at a tilt. Reports -1.0 when not measurable (occluded, or no usable silhouette); never a fabricated angle.",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 90.0
+      },
+      "accuracy": 5.0,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "green_block_yaw",
+      "name": "green_block yaw",
+      "datatype": "number",
+      "unit": "deg",
+      "description": "Yaw about world Z, in [0, 90). Taken from the minimum-area rectangle of the colour silhouette, with its corners deprojected to world coordinates first - the raw image-space angle is not the world angle, because the camera views the table at a tilt. Reports -1.0 when not measurable (occluded, or no usable silhouette); never a fabricated angle.",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 90.0
+      },
+      "accuracy": 5.0,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "blue_block_yaw",
+      "name": "blue_block yaw",
+      "datatype": "number",
+      "unit": "deg",
+      "description": "Yaw about world Z, in [0, 90). Taken from the minimum-area rectangle of the colour silhouette, with its corners deprojected to world coordinates first - the raw image-space angle is not the world angle, because the camera views the table at a tilt. Reports -1.0 when not measurable (occluded, or no usable silhouette); never a fabricated angle.",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 90.0
+      },
+      "accuracy": 5.0,
+      "sample_rate_hz": 20.0
+    },
+    {
+      "id": "yellow_block_yaw",
+      "name": "yellow_block yaw",
+      "datatype": "number",
+      "unit": "deg",
+      "description": "Yaw about world Z, in [0, 90). Taken from the minimum-area rectangle of the colour silhouette, with its corners deprojected to world coordinates first - the raw image-space angle is not the world angle, because the camera views the table at a tilt. Reports -1.0 when not measurable (occluded, or no usable silhouette); never a fabricated angle.",
+      "nominal_range": {
+        "min": -1.0,
+        "max": 90.0
+      },
+      "accuracy": 5.0,
+      "sample_rate_hz": 20.0
     }
   ],
   "actuators": [],

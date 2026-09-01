@@ -8,11 +8,11 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-8A63D2.svg)](https://modelcontextprotocol.io)
-[![Tests passing](https://img.shields.io/badge/tests-184%20passing-brightgreen.svg)](#testing)
+[![Tests passing](https://img.shields.io/badge/tests-207%20passing-brightgreen.svg)](#testing)
 
 *An agent asks for 300°. The arm is bounded to 90°. Nothing moves.*
 
-**184 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
+**207 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
 serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
 
 </div>
@@ -27,6 +27,7 @@ serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
 - [Quickstart](#quickstart)
 - [The Cinematic Sandbox Demo](#the-cinematic-sandbox-demo)
 - [Status — what works today, what's next](#status--what-works-today-whats-next)
+  - [Manipulation results](#manipulation-results)
 - [Reference](#reference)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -310,6 +311,12 @@ produce a misleading recording.
 - [x] Two independent enforcement points (middleware before dispatch, driver before transmit)
 - [x] Inclusive bounds and `max_rate` rate limiting
 - [x] All three `on_violation` policies honoured: `reject`, `clamp`, `estop`
+- [x] **Conditional envelopes** — a bound that changes with device state. The arm's floor
+      rises from 0.83 m to 0.86 m while the gripper holds a block, because the payload
+      hangs below the tool. Conditions may only ever *narrow* the base bound, enforced at
+      ingestion, so the declared envelope is always the worst case
+- [x] Clamped writes carry a `warning` field naming the requested value, the transmitted
+      value, and which condition tightened the bound
 - [x] Closed-loop verification against a feedback sensor, reporting `-32003` on desync
 - [x] Per-actuator human confirmation gates
 - [x] API-key auth that fails safe, Bearer and `x-api-key`, multi-token rotation
@@ -320,20 +327,71 @@ produce a misleading recording.
 - [x] Real serial transport driving Marlin/GRBL-style G-code
 - [x] In-memory transport with fault injection (dead link, stuck axis)
 - [x] PyBullet demo exporting a narrated MP4
+- [x] **robosuite/MuJoCo digital twin** — a Franka Panda and a colour-segmentation camera
+      as two separate devices, four blocks, wrist yaw under closed-loop control, and a
+      live wrist-camera inset overlaid on the viewer (`run_cell.py --viewer --pov`)
+- [x] **Ed25519 command signing** — [`docs/rt-signing.md`](docs/rt-signing.md) specifies a
+      200-byte signed frame for a real-time management plane; `tests/test_crypto_bridge.py`
+      is a working Python reference with 16 tests. Spec and prototype only: no C++ exists
 
 **Quality**
 
-- [x] 184 tests, no hardware required
+- [x] 207 tests, no hardware required
 - [x] CI on Python 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
+- [x] Driver compliance smoke test — five checks in 0.1 s against a real driver and a real
+      tag, covering reads, in-bounds writes, refusals, clamping and conditional bounds
+
+### Manipulation results
+
+`examples/robosuite_demo/stack_blocks.py` builds a block tower through the middleware, and
+is the closest thing here to an end-to-end honesty test: an agent planning a physical task
+with nothing but `mhs.read`, `mhs.write` and a capability tag.
+
+| Result | Status |
+| --- | --- |
+| Three-tier tower | **Reproducible.** Verified by tier height *and* occlusion signature |
+| Four-tier tower | **Achieved once, not yet re-verified.** A verification bug of ours then dismantled it — see below |
+| Grasp quality | 29.6–35.6 mm carry offset against a 30 mm geometric ideal, first attempt |
+| Placement drift | ~8 mm across a whole tower, down from ~14 mm *per tier* |
+
+Two findings are worth more than the tower:
+
+**Vision belongs in verification, never in the command path.** Targeting each placement at
+the camera's estimate of the block below made the camera's bias compound once per tier —
+~14 mm each, 40 mm by the third, past the 21 mm half-width that keeps a tower standing.
+Commanding in the tool frame instead, and using the camera only to answer *did that work*,
+removed the drift entirely.
+
+**Most of our failures were bad acceptance criteria, not bad mechanics.** Four separate
+"failures" turned out to be checks stricter than the physics they were checking: an
+occlusion threshold tuned on a three-tier tower that called a correct four-tier one broken;
+a convergence tolerance below what the servo delivers under load; a demand that a *release*
+descent converge, when landing short is exactly what setting a block down means. Because
+each was wired to a retry that undoes work, they did not merely report wrongly — one of
+them dismantled a finished tower. **A verification step that cannot distinguish success
+from failure is not neutral.**
 
 ### Roadmap
 
 Not built. Listed in rough order of how much they matter — contributions welcome on any of
 them, and the first two are the ones that would change what this project can honestly claim.
 
-- [ ] **Signed capability tags.** Today a tag is authenticated but not *attested*: anyone
-      holding the API token can register a device declaring whatever limits it likes. This
-      is the deepest hole in the trust model.
+- [ ] **Sensor confidence in the capability tag.** The camera reports `vision` or
+      `ground_truth`, and that flag is honest about *total* occlusion and silent about
+      partial: a blob at a quarter of its clean pixel count still calls itself `vision`
+      while being 28 mm wrong. Every guarantee the middleware makes sits downstream of
+      sensors being honest, and it currently has no way to check that. **This is now the
+      deepest hole in the trust model** — a bound can only be as good as the reading it
+      is evaluated against.
+- [ ] **Signed capability tags.** A tag is authenticated but not *attested*: anyone holding
+      the API token can register a device declaring whatever limits it likes.
+      [`docs/rt-signing.md`](docs/rt-signing.md) specifies the wire format and
+      `tests/test_crypto_bridge.py` implements the signer and verifier, but nothing in the
+      registry requires a signature yet.
+- [ ] **Orientation of a held object.** The camera gives a blob centroid; there is no way
+      to know whether a grasped block hangs square or a few degrees off. Tilt is the
+      remaining unmeasured variable in placement, and the most likely explanation for
+      why the fourth tier is harder than the third.
 - [ ] **Per-device credentials.** One shared secret means a compromised sensor's token can
       command a robotic arm.
 - [ ] **Enforce `max_duration_s`.** The schema defines it; the middleware parses it and
@@ -356,7 +414,7 @@ drivers/      driver contract, in-memory transport, real serial (G-code) transpo
 mcp_adapter/  MCP server wrapping the HTTP surface
 examples/     worked capability tags and the PyBullet demo
 docs/         specification documentation
-tests/        184 tests, no hardware required
+tests/        207 tests, no hardware required
 ```
 
 **Error codes**
@@ -383,7 +441,9 @@ Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 ## Testing
 
 ```bash
-pytest                # 184 tests, no hardware required
+pytest                                    # 207 tests, no hardware required
+pytest tests/test_driver_compliance.py    # 5-check smoke test, 0.1 s
+python tests/test_crypto_bridge.py        # signing flow, narrated
 ruff check .
 ```
 
@@ -396,7 +456,7 @@ test → real /rpc route → real driver class → FAKE transport
                                              ^^^^ only this is fake
 ```
 
-What the 184 tests actually cover:
+What the 207 tests actually cover:
 
 | Area | What is proved |
 | --- | --- |
@@ -407,6 +467,8 @@ What the 184 tests actually cover:
 | Desync | A transport that accepts a command without moving reports `-32003` |
 | Auth | Every hardware-facing route is walked and asserted to 401 without a token |
 | Schema | Every shipped capability tag validates against both validators, and malformed ones are rejected by both |
+| Conditional bounds | A state-dependent floor tightens with the gripper, reads the *sensor* not the commanded value, and may never widen the base bound |
+| Signing | Replay, forgery, tampering, a forged approval flag, and a signed-but-unsafe command that the envelope still refuses |
 
 The suite runs in about two seconds and needs no hardware, so there is no excuse for a
 driver to arrive without tests.

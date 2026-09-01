@@ -159,6 +159,21 @@ def _clamped_header(result: dict[str, Any], unit: str) -> list[str]:
             f"Reason: the allowed range is {details.get('min')} to {details.get('max')}{unit}, "
             "inclusive, and this limit declares on_violation 'clamp' rather than 'reject'."
         )
+    condition = details.get("condition")
+    if condition:
+        # The bound that bit was not the one printed in the tag's headline range. Say which
+        # state tightened it, or the agent re-reads the tag, sees the looser number, and
+        # concludes the middleware is broken.
+        lines.append(
+            f"This bound is CONDITIONAL: it tightened to {details.get('min')}"
+            f"{unit} because {condition['when_target']} currently reads "
+            f"{condition.get('observed')!r}. The unconditional range is "
+            f"{details.get('base_min')} to {details.get('base_max')}{unit}, and it will "
+            f"apply again once {condition['when_target']} is no longer "
+            f"{condition['equals']!r}."
+        )
+        if condition.get("rationale"):
+            lines.append(f"Why this state is stricter: {condition['rationale']}")
     if details.get("rationale"):
         lines.append(f"Why the limit exists: {details['rationale']}")
     lines.append(

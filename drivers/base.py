@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from abc import ABC
@@ -25,7 +26,9 @@ from typing import Any, Awaitable, Callable
 from drivers.transport import InMemoryTransport, Transport, TransportError
 from server import safety
 from server.errors import HardwareExecutionError, InvalidParams, StateDesync
-from server.models import Actuator, CapabilityTag, Sensor
+from server.models import Actuator, CapabilityTag, SafetyLimit, Sensor
+
+log = logging.getLogger("open_mhs.driver")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TOLERANCE = 1e-6
@@ -167,10 +170,15 @@ class BaseDevice(ABC):
 
         limit = self._tag.limit_map[target]
         current, elapsed_s = self._rate_context(target, actuator)
+        # Resolved here too, independently of the middleware. The two enforcement points
+        # share one evaluator but never share a result: a driver reached directly, with no
+        # middleware in front of it, must still honour a state-dependent envelope.
+        state = await self._condition_state(limit)
         try:
             decision = safety.check_write(
                 actuator, limit, value,
                 current=current, elapsed_s=elapsed_s, device_id=self.device_id,
+                state=state,
             )
         except safety.EmergencyStopRequired as exc:
             # Honour the tag even when this driver is used without the middleware.
@@ -236,6 +244,27 @@ class BaseDevice(ABC):
         }
 
     # --- internals ---
+
+    async def _condition_state(self, limit: SafetyLimit) -> dict[str, Any] | None:
+        """Read the channels a conditional bound depends on. None when it has none.
+
+        An unreadable channel is omitted, never defaulted. The base bound is narrower than
+        any condition by construction, so a failed read tightens the envelope rather than
+        opening it.
+        """
+        targets = safety.condition_targets(limit)
+        if not targets:
+            return None
+        state: dict[str, Any] = {}
+        for target in targets:
+            try:
+                state[target] = await self.read(target)
+            except Exception:  # noqa: BLE001 - never let a bad read open a bound
+                log.warning(
+                    "%s: could not read %r for the conditional limit on %s; using the "
+                    "base bound", self.device_id, target, limit.target,
+                )
+        return state
 
     def _rate_context(self, target: str, actuator: Actuator) -> tuple[Any, float | None]:
         previous = self._last_write.get(target)

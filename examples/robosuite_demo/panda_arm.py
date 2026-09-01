@@ -37,7 +37,8 @@ class PandaArmTransport(Transport):
     async def acquire(self, target: str) -> Any:
         # A commanded channel reads back through its measured counterpart.
         lookup = {"tcp_x": "tcp_x_actual", "tcp_y": "tcp_y_actual",
-                  "tcp_z": "tcp_z_actual", "gripper_state": "gripper_actual"}
+                  "tcp_z": "tcp_z_actual", "tcp_yaw": "tcp_yaw_actual",
+                  "gripper_state": "gripper_actual"}
         try:
             return self.cell.read(lookup.get(target, target))
         except KeyError as exc:

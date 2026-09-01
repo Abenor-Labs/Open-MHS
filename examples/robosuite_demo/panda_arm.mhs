@@ -6,7 +6,7 @@
   "vendor": "Open-MHS Reference",
   "model": "robosuite Lift / Panda / OSC_POSE",
   "firmware_version": "robosuite-1.5.2+mujoco-3.3.7",
-  "description": "A Franka Panda in a MuJoCo digital twin, commanded as a Cartesian tool pose. The safety limits describe a work envelope measured against the real robot, not guessed: 26 of 27 sampled corners hold to within 20 mm. The table top sits at z=0.800 m, so the z floor of 0.83 m is what stops the agent driving the gripper through the table.",
+  "description": "A Franka Panda in a MuJoCo digital twin, commanded as a Cartesian tool pose. The safety limits describe a work envelope measured against the real robot, not guessed: 26 of 27 sampled corners hold to within 20 mm. The table top sits at z=0.800 m, so the z floor of 0.83 m is what stops the agent driving the gripper through the table. The wrist yaw is commandable so the jaws can be squared to a block before grasping: blocks spawn at random yaw, and a corner-on grasp pinches two edges instead of two faces.",
   "driver": {
     "transport": "mock",
     "address": "mujoco://robosuite",
@@ -65,6 +65,19 @@
       "name": "Block currently held",
       "datatype": "string",
       "description": "Name of the block the gripper actually has, by contact check in the simulator, or 'nothing'. Not an assumption."
+    },
+    {
+      "id": "tcp_yaw_actual",
+      "name": "Wrist yaw (measured)",
+      "datatype": "number",
+      "unit": "deg",
+      "description": "Wrist rotation about world Z, from the end-effector quaternion, wrapped to [0, 90) because a cube is symmetric every 90 degrees.",
+      "nominal_range": {
+        "min": 0.0,
+        "max": 90.0
+      },
+      "accuracy": 2.0,
+      "sample_rate_hz": 20.0
     }
   ],
   "actuators": [
@@ -76,7 +89,7 @@
       "write_mode": "absolute",
       "default": 0.0,
       "feedback_sensor": "tcp_x_actual",
-      "settle_time_ms": 4000
+      "settle_time_ms": 800
     },
     {
       "id": "tcp_y",
@@ -86,7 +99,7 @@
       "write_mode": "absolute",
       "default": 0.0,
       "feedback_sensor": "tcp_y_actual",
-      "settle_time_ms": 4000
+      "settle_time_ms": 800
     },
     {
       "id": "tcp_z",
@@ -96,7 +109,7 @@
       "write_mode": "absolute",
       "default": 1.05,
       "feedback_sensor": "tcp_z_actual",
-      "settle_time_ms": 4000
+      "settle_time_ms": 800
     },
     {
       "id": "gripper_state",
@@ -110,6 +123,16 @@
       "feedback_sensor": "gripper_actual",
       "settle_time_ms": 1200,
       "requires_confirmation": true
+    },
+    {
+      "id": "tcp_yaw",
+      "name": "Wrist yaw (commanded)",
+      "datatype": "number",
+      "unit": "deg",
+      "write_mode": "absolute",
+      "default": 0.0,
+      "feedback_sensor": "tcp_yaw_actual",
+      "settle_time_ms": 800
     }
   ],
   "safety_limits": [
@@ -137,8 +160,16 @@
       "min": 0.83,
       "max": 1.15,
       "enforcement": "software",
-      "on_violation": "reject",
-      "rationale": "THE TABLE TOP IS AT z=0.800 m. Below 0.83 m the gripper is driven into the table. MuJoCo will happily simulate that collision and a real Panda would happily attempt it; this bound is the only thing that does not."
+      "on_violation": "clamp",
+      "rationale": "THE TABLE TOP IS AT z=0.800 m. 0.83 is the empty-gripper floor and it is MEASURED, not chosen: commanding 0.82 bottoms the jaws out at 0.8299, which is contact, not a bound. Holding a block the floor rises to 0.86 (see conditions). Clamps rather than rejects: a below-floor command is corrected and flagged, safe ONLY because every clamp target is at or above 0.83.",
+      "conditions": [
+        {
+          "when_target": "gripper_actual",
+          "equals": "closed",
+          "min": 0.86,
+          "rationale": "Holding a payload. A grasped 42 mm block hangs roughly 30-40 mm below the tool, so the tool floor that is safe empty would drive the block through the table. Measured carry offsets this session: 28-47 mm."
+        }
+      ]
     },
     {
       "target": "gripper_state",
@@ -149,6 +180,15 @@
       "enforcement": "firmware",
       "on_violation": "reject",
       "rationale": "Two commandable states. Closing on a hand is why this actuator also requires human confirmation."
+    },
+    {
+      "target": "tcp_yaw",
+      "unit": "deg",
+      "min": 0.0,
+      "max": 90.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "A cube is indistinguishable under 90 degree rotation, so every useful alignment lives in [0, 90). Bounding it here stops an agent winding the wrist through multiple turns to reach an angle it already had."
     }
   ],
   "emergency_stop": {
@@ -157,7 +197,8 @@
       "tcp_x": 0.0,
       "tcp_y": 0.0,
       "tcp_z": 1.1,
-      "gripper_state": "open"
+      "gripper_state": "open",
+      "tcp_yaw": 0.0
     },
     "max_stop_time_ms": 4000
   },

@@ -42,9 +42,10 @@ from server.main import create_app            # noqa: E402
 from server.registry import Registry          # noqa: E402
 
 
-def build(token: str, render: bool = False, interactive: bool = False):
+def build(token: str, render: bool = False, interactive: bool = False,
+          pov: bool = False):
     """Bring up the twin and the middleware around it. Caller runs `cell.loop()`."""
-    cell = Workcell(render=render, interactive=interactive)
+    cell = Workcell(render=render, interactive=interactive, pov=pov)
     cell.build()
 
     registry = Registry()
@@ -63,6 +64,9 @@ def main() -> int:
     parser.add_argument("--viewer", action="store_true",
                         help="MuJoCo's interactive viewer: left-drag orbits, right-drag "
                              "pans, wheel zooms, double-click tracks a body")
+    parser.add_argument("--pov", action="store_true",
+                        help="live wrist-camera window: what the arm itself sees, with "
+                             "the middleware's world model drawn over it")
     args = parser.parse_args()
 
     token = os.getenv("OPEN_MHS_AUTH_TOKEN")
@@ -72,7 +76,8 @@ def main() -> int:
         return 1
 
     print("  building the MuJoCo environment (first run compiles assets, give it a moment)...")
-    cell, app = build(token, render=args.render, interactive=args.viewer)
+    cell, app = build(token, render=args.render, interactive=args.viewer,
+                      pov=args.pov)
 
     server = uvicorn.Server(
         uvicorn.Config(app, host=args.host, port=args.port, log_level="warning"))
