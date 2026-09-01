@@ -1,5 +1,5 @@
 {
-  "mhs_version": "0.1",
+  "mhs_version": "0.2",
   "device_id": "panda-arm-01",
   "name": "Franka Panda \u2014 robosuite digital twin",
   "type": "robotic_arm",

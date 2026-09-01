@@ -28,6 +28,8 @@ serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
 - [The Cinematic Sandbox Demo](#the-cinematic-sandbox-demo)
 - [Status — what works today, what's next](#status--what-works-today-whats-next)
   - [Manipulation results](#manipulation-results)
+  - [Versioning](#versioning)
+  - [Roadmap](#roadmap)
 - [Reference](#reference)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -371,37 +373,74 @@ each was wired to a retry that undoes work, they did not merely report wrongly �
 them dismantled a finished tower. **A verification step that cannot distinguish success
 from failure is not neutral.**
 
+### Versioning
+
+Two version numbers, and they mean different things.
+
+| | What it versions | Where |
+| --- | --- | --- |
+| `mhs_version` | the **Capability Tag format** — a wire contract between anyone who writes a tag and anyone who reads one | inside every `.mhs` file |
+| package version | this **implementation** | `pyproject.toml` |
+
+They are allowed to diverge, and will. A tag written for spec 0.2 must be readable by any
+0.2 implementation, whoever wrote it.
+
+**Any added field bumps the spec version, even a purely additive one.** Tags validate
+strictly — `additionalProperties: false`, `extra="forbid"` — so a reader built against an
+older spec does not ignore an unknown field, it *rejects the tag*. Shipping a new field
+under the old version number silently breaks every existing implementation. Ingestion
+enforces this: a tag declaring `0.1` while using a `0.2` feature is refused, and says so.
+
+| Spec | Adds |
+| --- | --- |
+| **0.1** | the original format |
+| **0.2** | `safety_limits[].conditions` — bounds that resolve against live device state |
+
 ### Roadmap
 
-Not built. Listed in rough order of how much they matter — contributions welcome on any of
-them, and the first two are the ones that would change what this project can honestly claim.
+Grouped by the claim each milestone would let the project honestly make. Contributions
+welcome on any of it; the v0.2 items are the ones that most change what can be said today.
 
-- [ ] **Sensor confidence in the capability tag.** The camera reports `vision` or
-      `ground_truth`, and that flag is honest about *total* occlusion and silent about
-      partial: a blob at a quarter of its clean pixel count still calls itself `vision`
-      while being 28 mm wrong. Every guarantee the middleware makes sits downstream of
-      sensors being honest, and it currently has no way to check that. **This is now the
-      deepest hole in the trust model** — a bound can only be as good as the reading it
-      is evaluated against.
+#### v0.2 — trust the readings
+
+The middleware enforces bounds correctly. What it cannot do is tell whether the *reading*
+a bound was evaluated against described reality. Every guarantee sits downstream of that.
+
+- [ ] **Sensor confidence in the tag.** `vision` vs `ground_truth` is honest about total
+      occlusion and silent about partial: a blob at a quarter of its clean pixel count
+      still calls itself `vision` while being 28 mm wrong. A device should be able to
+      report *how much* to trust a reading, and the middleware should be able to refuse to
+      act on a degraded one.
+- [ ] **Enforce `max_duration_s`.** The schema defines it; the middleware parses it and
+      ignores it. An unenforced field in a safety specification is worse than an absent one.
+- [x] **Conditional envelopes.** Bounds that change with device state. *Shipped in spec 0.2.*
+
+#### v0.3 — trust the sender
+
 - [ ] **Signed capability tags.** A tag is authenticated but not *attested*: anyone holding
       the API token can register a device declaring whatever limits it likes.
       [`docs/rt-signing.md`](docs/rt-signing.md) specifies the wire format and
-      `tests/test_crypto_bridge.py` implements the signer and verifier, but nothing in the
+      `tests/test_crypto_bridge.py` implements signer and verifier — but nothing in the
       registry requires a signature yet.
-- [ ] **Orientation of a held object.** The camera gives a blob centroid; there is no way
-      to know whether a grasped block hangs square or a few degrees off. Tilt is the
-      remaining unmeasured variable in placement, and the most likely explanation for
-      why the fourth tier is harder than the third.
 - [ ] **Per-device credentials.** One shared secret means a compromised sensor's token can
       command a robotic arm.
-- [ ] **Enforce `max_duration_s`.** The schema defines it; the middleware parses it and
-      ignores it. An unenforced field in a safety specification is worse than an absent one.
 - [ ] **Persistent registry and an audit log.** The registry is in-memory: a restart forgets
       every device, and nothing records what was commanded or refused.
+
+#### v0.4 — trust it off this desk
+
+- [ ] **Real-hardware validation.** Everything here is simulated. The serial driver is
+      tested against a fake port and pyserial's loopback; nobody has driven physical metal
+      with it. That report is the single most valuable thing a contributor could file.
 - [ ] **More drivers** — Modbus TCP, CAN bus, ROS 2, Dynamixel, SCPI instruments, GPIO/I²C.
-- [ ] **Real-hardware validation.** The serial driver is tested against a fake port and
-      pyserial's loopback. Nobody has driven physical metal with it yet, and that report is
-      one of the most valuable things a contributor could file.
+- [ ] **Orientation of a held object.** The camera gives a blob centroid; nothing knows
+      whether a grasped part hangs square. Tilt is the last unmeasured variable in
+      placement, and the likeliest reason a fourth tier is harder than a third.
+
+#### v1.0 — freeze the spec
+
+- [ ] **Capability Tag 1.0**, with a compatibility policy and a conformance suite an
+      independent implementation can run against itself.
 - [ ] **Deployment hardening** — TLS termination guidance, rate limiting on the HTTP surface.
 - [ ] **PyPI release**, so `pip install open-mhs` works without a clone.
 

@@ -16,10 +16,11 @@
   ],
   "properties": {
     "mhs_version": {
-      "description": "Version of the Open-MHS Capability Tag specification this document conforms to.",
+      "description": "Version of the Open-MHS Capability Tag specification this document conforms to. 0.2 adds safety_limits[].conditions; a tag using conditions must declare 0.2, because a 0.1 reader validates strictly and would reject the unknown field.",
       "type": "string",
       "enum": [
-        "0.1"
+        "0.1",
+        "0.2"
       ]
     },
     "device_id": {

@@ -18,6 +18,16 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 Identifier = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9._-]{1,63}$")]
 Unit = Annotated[str, StringConstraints(min_length=1, max_length=32)]
 
+#: Capability Tag SPECIFICATION versions this implementation understands. Distinct from
+#: the package version: this one is a wire contract. Because tags validate strictly, ANY
+#: field added to the format is breaking for a reader built against an older spec, so a
+#: purely additive change still bumps the minor version.
+#:
+#: 0.1  original format
+#: 0.2  adds safety_limits[].conditions -- state-dependent bounds
+SpecVersion = Literal["0.1", "0.2"]
+CONDITIONS_SINCE = "0.2"
+
 DataType = Literal["number", "integer", "boolean", "string", "enum", "vector3"]
 NUMERIC_TYPES: frozenset[str] = frozenset({"number", "integer", "vector3"})
 
@@ -191,7 +201,7 @@ class DiscoverySpec(Strict):
 class CapabilityTag(Strict):
     """A device's full self-description. See docs/capability-tags.md."""
 
-    mhs_version: Literal["0.1"]
+    mhs_version: SpecVersion
     device_id: Identifier
     name: str = Field(min_length=1, max_length=128)
     type: DeviceType
@@ -268,7 +278,7 @@ class CapabilityTag(Strict):
 
         for limit in self.safety_limits:
             self._check_on_violation(limit, self.emergency_stop)
-            self._check_conditions(limit, sensors, actuators)
+            self._check_conditions(limit, sensors, actuators, self.mhs_version)
 
         if self.emergency_stop and self.emergency_stop.safe_state:
             unknown = sorted(set(self.emergency_stop.safe_state) - set(actuators))
@@ -285,7 +295,8 @@ class CapabilityTag(Strict):
 
     @staticmethod
     def _check_conditions(
-        limit: SafetyLimit, sensors: dict[str, Any], actuators: dict[str, Any]
+        limit: SafetyLimit, sensors: dict[str, Any], actuators: dict[str, Any],
+        spec_version: str,
     ) -> None:
         """Conditional bounds must reference real channels and may only ever TIGHTEN.
 
@@ -297,6 +308,14 @@ class CapabilityTag(Strict):
         """
         if not limit.conditions:
             return
+        if spec_version < CONDITIONS_SINCE:
+            raise ValueError(
+                f"{limit.target}: conditions were introduced in Capability Tag spec "
+                f"{CONDITIONS_SINCE}, but this tag declares mhs_version "
+                f"{spec_version!r}. Declare {CONDITIONS_SINCE} -- a reader built against "
+                f"{spec_version} validates strictly and would reject the field outright, "
+                "so shipping it under the older version silently breaks them."
+            )
         if limit.allowed_values is not None:
             raise ValueError(
                 f"{limit.target}: conditions bound a numeric range and have no meaning "
