@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from cli import main as cli
-from cli.device_doc import generate
-from server.models import CapabilityTag
+from open_mhs.cli import main as cli
+from open_mhs.cli.device_doc import generate
+from open_mhs.server.models import CapabilityTag
 from tests.conftest import EXAMPLES, FIXTURES, load_tag
 
 

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from cli import main as cli
-from mcp_adapter.client import OpenMHSClient
-from server.audit import AuditLog
+from open_mhs.cli import main as cli
+from open_mhs.mcp_adapter.client import OpenMHSClient
+from open_mhs.server.audit import AuditLog
 from tests.conftest import EXAMPLES
 
 

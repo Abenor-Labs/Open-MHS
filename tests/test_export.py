@@ -16,9 +16,9 @@ from types import ModuleType
 
 import pytest
 
-from cli import main as cli
-from cli.export import class_name, generate, method_name
-from server.models import CapabilityTag
+from open_mhs.cli import main as cli
+from open_mhs.cli.export import class_name, generate, method_name
+from open_mhs.server.models import CapabilityTag
 from tests.conftest import EXAMPLES, FIXTURES, TEST_TOKEN, load_tag
 
 
@@ -108,7 +108,7 @@ def _free_port() -> int:
 def live_server(tmp_path: Path, monkeypatch):
     import uvicorn
 
-    from server.main import create_app
+    from open_mhs.server.main import create_app
 
     monkeypatch.setenv("OPEN_MHS_AUDIT_LOG", str(tmp_path / "audit.jsonl"))
     port = _free_port()

@@ -29,8 +29,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from mcp_adapter.client import OpenMHSClient, OpenMHSUnreachable, RemoteRPCError, Unauthorized
-from mcp_adapter.formatting import (
+from open_mhs.mcp_adapter.client import OpenMHSClient, OpenMHSUnreachable, RemoteRPCError, Unauthorized
+from open_mhs.mcp_adapter.formatting import (
     format_check,
     format_discovery,
     format_emergency_stop,
@@ -187,7 +187,7 @@ async def _run(args: argparse.Namespace, client: OpenMHSClient) -> int:
 
 
 def _describe(path: str) -> int:
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(json.loads(Path(path).read_text(encoding="utf-8")))
     summary = {"count": 1, "devices": [{
@@ -205,8 +205,8 @@ def _describe(path: str) -> int:
 
 
 def _export(tag_path: str, out: str | None) -> int:
-    from cli.export import generate
-    from server.models import CapabilityTag
+    from open_mhs.cli.export import generate
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(json.loads(Path(tag_path).read_text(encoding="utf-8")))
     source = generate(tag)
@@ -219,8 +219,8 @@ def _export(tag_path: str, out: str | None) -> int:
 
 
 def _doc(tag_path: str, out: str | None, url: str) -> int:
-    from cli.device_doc import generate
-    from server.models import CapabilityTag
+    from open_mhs.cli.device_doc import generate
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(json.loads(Path(tag_path).read_text(encoding="utf-8")))
     text = generate(tag, url=url)
@@ -233,7 +233,7 @@ def _doc(tag_path: str, out: str | None, url: str) -> int:
 
 
 def _audit_verify(path: str) -> int:
-    from server.audit import verify
+    from open_mhs.server.audit import verify
 
     report = verify(path)
     if report["ok"]:
@@ -246,7 +246,7 @@ def _audit_verify(path: str) -> int:
 def _serve(args: argparse.Namespace) -> int:
     import uvicorn
 
-    from server.main import create_app
+    from open_mhs.server.main import create_app
 
     if not os.getenv("OPEN_MHS_AUTH_TOKEN"):
         print(

@@ -1,6 +1,32 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-09-02
+
+**Breaking.** Everything moved under one package and the library surface is now declared.
+Done before the first upload precisely so nobody has to be broken by it later.
+
+### Changed
+- **Namespace.** `server`, `drivers`, `mcp_adapter` and `cli` were top-level modules, so
+  `pip install open-mhs` put four common names into the global namespace and `import
+  server` from an installed package collided with the user's own code. They now live at
+  `open_mhs.server`, `open_mhs.drivers`, `open_mhs.mcp_adapter`, `open_mhs.cli`. No
+  compatibility shims: the package had never been published, so nothing depends on the old
+  paths. Console scripts, the MCP server module path, and every tag's `driver.module` field
+  were updated to match.
+- Package version and Capability Tag spec version now differ (0.3.0 against spec 0.2),
+  which is the policy working as intended rather than a mistake.
+
+### Added
+- **A declared public API.** `import open_mhs` exposes the specification types, the driver
+  base class and transports, the safety evaluator, the middleware factory, the audit log,
+  and the error classes. `tests/test_public_api.py` pins the exact set: adding a name is a
+  feature, removing one is a breaking change.
+- **The library path is documented and tested.** A driver plus a transport is a complete
+  safety layer with no HTTP, no registry, and no MCP. Tests exercise it directly, including
+  that a refusal transmits nothing.
+- `py.typed`, so the annotations already in the source reach downstream type checkers.
+
+## 0.2.0 (unreleased as a package) — additions carried into 0.3.0
 
 ### Added
 - **The code-file gate.** `open-mhs export <tag>.mhs` generates a standalone, typed Python

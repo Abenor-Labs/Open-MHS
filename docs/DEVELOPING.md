@@ -30,7 +30,7 @@ the failure this project exists to prevent.
 
 ```bash
 export OPEN_MHS_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-uvicorn server.main:app
+uvicorn open_mhs.server.main:app
 ```
 
 ```bash
@@ -137,7 +137,7 @@ written on this machine. On a fresh machine:
   "mcpServers": {
     "open-mhs": {
       "command": "/absolute/path/to/python",
-      "args": ["-m", "mcp_adapter.server"],
+      "args": ["-m", "open_mhs.mcp_adapter.server"],
       "env": {
         "PYTHONPATH": "/absolute/path/to/Open-MHS",
         "OPEN_MHS_URL": "http://127.0.0.1:8000",

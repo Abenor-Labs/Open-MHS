@@ -10,7 +10,7 @@
   "driver": {
     "transport": "serial",
     "address": "/dev/ttyUSB0",
-    "module": "drivers.serial_robotic_arm:SerialRoboticArm",
+    "module": "open_mhs.drivers.serial_robotic_arm:SerialRoboticArm",
     "timeout_ms": 2000
   },
   "sensors": [

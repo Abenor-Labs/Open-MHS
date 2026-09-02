@@ -117,7 +117,7 @@ it drives to the tag-declared safe state, which is trusted by definition.
 
 ```bash
 python -m pytest tests/ -q
-uvicorn server.main:app --reload   # verify /docs renders
+uvicorn open_mhs.server.main:app --reload   # verify /docs renders
 ```
 
 Add a test alongside the endpoint in the same change. An endpoint with no test does not ship.

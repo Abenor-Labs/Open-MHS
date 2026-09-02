@@ -467,9 +467,9 @@ def test_signed_but_unsafe_is_still_refused(keyring, signing_key):
     """
     import json
 
-    from server import safety
-    from server.errors import SafetyLimitViolation
-    from server.models import CapabilityTag
+    from open_mhs.server import safety
+    from open_mhs.server.errors import SafetyLimitViolation
+    from open_mhs.server.models import CapabilityTag
 
     tag_path = REPO_ROOT / "examples" / "robosuite_demo" / "panda_arm.mhs"
     tag = CapabilityTag.model_validate(json.loads(tag_path.read_text(encoding="utf-8")))
@@ -561,9 +561,9 @@ def _demo() -> int:
     # The one that matters.
     import json
 
-    from server import safety
-    from server.errors import SafetyLimitViolation
-    from server.models import CapabilityTag
+    from open_mhs.server import safety
+    from open_mhs.server.errors import SafetyLimitViolation
+    from open_mhs.server.models import CapabilityTag
 
     tag_path = REPO_ROOT / "examples" / "robosuite_demo" / "panda_arm.mhs"
     tag = CapabilityTag.model_validate(json.loads(tag_path.read_text(encoding="utf-8")))

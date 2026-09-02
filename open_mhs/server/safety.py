@@ -26,8 +26,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from server.errors import InvalidParams, SafetyLimitViolation
-from server.models import Actuator, LimitCondition, SafetyLimit
+from open_mhs.server.errors import InvalidParams, SafetyLimitViolation
+from open_mhs.server.models import Actuator, LimitCondition, SafetyLimit
 
 log = logging.getLogger("open_mhs.safety")
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.models import Actuator, CapabilityTag, SafetyLimit, Sensor
+from open_mhs.server.models import Actuator, CapabilityTag, SafetyLimit, Sensor
 
 
 def _unit(suffix: str | None) -> str:

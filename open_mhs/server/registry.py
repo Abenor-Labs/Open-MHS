@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from server.errors import DeviceNotFound
-from server.models import CapabilityTag, DeviceSummary
+from open_mhs.server.errors import DeviceNotFound
+from open_mhs.server.models import CapabilityTag, DeviceSummary
 
 DEFAULT_HEARTBEAT_S = 30.0
 STALE_AFTER_MISSED_BEATS = 2

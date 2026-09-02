@@ -16,10 +16,10 @@ from typing import Any
 
 import pytest
 
-from drivers.serial_robotic_arm import SerialRoboticArm
-from drivers.serial_transport import SerialTransport
-from drivers.transport import TransportError
-from server.errors import HardwareExecutionError, InvalidParams, SafetyLimitViolation
+from open_mhs.drivers.serial_robotic_arm import SerialRoboticArm
+from open_mhs.drivers.serial_transport import SerialTransport
+from open_mhs.drivers.transport import TransportError
+from open_mhs.server.errors import HardwareExecutionError, InvalidParams, SafetyLimitViolation
 from tests.conftest import EXAMPLES, _no_sleep, load_tag
 
 
@@ -257,7 +257,7 @@ async def test_an_unconfirmed_gripper_command_sends_nothing() -> None:
 @pytest.mark.asyncio
 async def test_a_stuck_axis_over_serial_is_a_state_desync() -> None:
     """Firmware acknowledged the move, the axis did not arrive. Not a success."""
-    from server.errors import StateDesync
+    from open_mhs.server.errors import StateDesync
 
     arm = make_arm(["ok", "X:0.000 Y:0.000 Z:0.00 E:0.00"])
     with pytest.raises(StateDesync) as exc:
@@ -285,7 +285,7 @@ async def test_emergency_stop_sends_m112_before_the_safe_state() -> None:
 def test_the_serial_arm_tag_validates_against_the_schema(serial_tag) -> None:
     from jsonschema import Draft202012Validator
 
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
     from tests.conftest import REPO_ROOT
 
     schema = json.loads(
@@ -297,7 +297,7 @@ def test_the_serial_arm_tag_validates_against_the_schema(serial_tag) -> None:
 
 def test_the_serial_tag_claims_software_enforcement_not_firmware(serial_tag) -> None:
     """Marlin accepts `G1 X500` without complaint, so claiming firmware enforcement would lie."""
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(serial_tag)
     assert tag.limit_map["joint_1"].enforcement == "software"

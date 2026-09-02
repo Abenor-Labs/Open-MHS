@@ -14,7 +14,7 @@ import json
 
 import pytest
 
-from server.errors import (
+from open_mhs.server.errors import (
     HARDWARE_EXECUTION_ERROR,
     INVALID_PARAMS,
     SAFETY_LIMIT_VIOLATION,
@@ -270,8 +270,8 @@ async def test_transport_failure_over_rpc_is_32002(arm_factory, arm_tag, temp_de
                                                    gripper_device) -> None:
     import httpx
 
-    from server.main import create_app
-    from server.registry import Registry
+    from open_mhs.server.main import create_app
+    from open_mhs.server.registry import Registry
 
     arm = arm_factory(fail_on={"joint_1"})
     registry = Registry()
@@ -421,7 +421,7 @@ async def test_middleware_blocks_a_forbidden_discrete_state_for_an_unchecked_dri
 
 def test_reject_is_the_default_when_a_tag_says_nothing(arm_tag) -> None:
     """Absent `on_violation`, a limit refuses. Nothing else is a safe default."""
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(arm_tag)
     assert all(limit.on_violation == "reject" for limit in tag.safety_limits)
@@ -558,7 +558,7 @@ async def test_a_failed_emergency_stop_does_not_mask_the_violation(
     client_factory, estop_tag
 ) -> None:
     """If the stop itself fails, the caller must still learn why the write was refused."""
-    from drivers.transport import InMemoryTransport
+    from open_mhs.drivers.transport import InMemoryTransport
     from tests.conftest import EstopPump, _no_sleep
 
     pump = EstopPump(
@@ -585,7 +585,7 @@ def test_clamp_on_a_discrete_limit_is_rejected_at_ingestion(restricted_gripper_t
     """There is no nearest member of {open, closed}. The tag must not claim otherwise."""
     from pydantic import ValidationError
 
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
 
     doc = json.loads(json.dumps(restricted_gripper_tag))
     doc["safety_limits"][0]["on_violation"] = "clamp"
@@ -596,7 +596,7 @@ def test_clamp_on_a_discrete_limit_is_rejected_at_ingestion(restricted_gripper_t
 def test_estop_without_a_declared_emergency_stop_is_rejected_at_ingestion(estop_tag) -> None:
     from pydantic import ValidationError
 
-    from server.models import CapabilityTag
+    from open_mhs.server.models import CapabilityTag
 
     doc = json.loads(json.dumps(estop_tag))
     del doc["emergency_stop"]
@@ -609,8 +609,8 @@ async def test_a_discrete_clamp_that_reaches_runtime_refuses_rather_than_guessin
     restricted_gripper_tag,
 ) -> None:
     """Defence in depth: ingestion should have caught this, but runtime must not guess."""
-    from server import safety
-    from server.models import Actuator, SafetyLimit
+    from open_mhs.server import safety
+    from open_mhs.server.models import Actuator, SafetyLimit
 
     actuator = Actuator.model_validate(restricted_gripper_tag["actuators"][0])
     limit = SafetyLimit.model_validate(

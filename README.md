@@ -188,6 +188,30 @@ So they are tested that way:
 The agent's entire vocabulary is two primitives — `read` observes, `write` commands — plus
 an emergency stop. One mutating surface means one place to audit.
 
+### Use it as a library, with no server
+
+The middleware is one way to consume this package, not the only one. A driver and a
+transport are already a complete safety layer: the tag is validated at construction, and
+every write is checked against it before your transport sees a byte.
+
+```python
+from open_mhs import BaseDevice, SafetyLimitViolation
+
+class BenchPump(BaseDevice):
+    def encode(self, target, value):
+        return f"SETFLOW {value}\r\n".encode()
+
+pump = BenchPump("bench_pump.mhs", MySerialTransport("/dev/ttyUSB0"))
+
+await pump.write("flow_rate", 5.0)      # checked, then transmitted
+await pump.write("flow_rate", 500.0)    # SafetyLimitViolation, nothing sent
+```
+
+`import open_mhs` exposes the specification types, `BaseDevice` and the transports, the
+safety evaluator itself (`check_write`, `effective_bounds`, so a planner can ask "would
+this be allowed?" without writing), `create_app`, `AuditLog`, and the error classes. That
+list is pinned by a test: adding a name is a feature, removing one is a breaking change.
+
 ### Three gates, one enforcer
 
 An agent reaches hardware three ways, and all of them land on the same `/rpc` dispatcher
@@ -259,7 +283,7 @@ variable was forgotten is exactly the failure this project exists to prevent.
 
 ```bash
 export OPEN_MHS_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-uvicorn server.main:app
+uvicorn open_mhs.server.main:app
 ```
 
 <details>
@@ -267,7 +291,7 @@ uvicorn server.main:app
 
 ```powershell
 $env:OPEN_MHS_AUTH_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
-uvicorn server.main:app
+uvicorn open_mhs.server.main:app
 ```
 
 </details>

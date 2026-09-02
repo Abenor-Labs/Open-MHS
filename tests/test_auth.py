@@ -12,9 +12,9 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from server.auth import ENV_VAR, MIN_TOKEN_LENGTH, AuthNotConfigured, AuthPolicy, load_tokens
-from server.main import create_app
-from server.registry import Registry
+from open_mhs.server.auth import ENV_VAR, MIN_TOKEN_LENGTH, AuthNotConfigured, AuthPolicy, load_tokens
+from open_mhs.server.main import create_app
+from open_mhs.server.registry import Registry
 from tests.conftest import AUTH_HEADERS, TEST_TOKEN
 
 WRONG_TOKEN = "wrong-token-also-long-enough-0123456789"

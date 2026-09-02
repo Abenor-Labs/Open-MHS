@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "open-mhs"
-version = "0.2.0"
+version = "0.3.0"
 description = "Open Model Hardware Standard - a vendor-neutral driver specification for AI agents to safely operate physical hardware."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.scripts]
-open-mhs = "cli.main:main"
-open-mhs-mcp = "mcp_adapter.server:main"
+open-mhs = "open_mhs.cli.main:main"
+open-mhs-mcp = "open_mhs.mcp_adapter.server:main"
 
 [project.optional-dependencies]
 dev = [
@@ -47,15 +47,15 @@ include-package-data = true
 [tool.setuptools.packages.find]
 # Subpackages (server.routers) are found by pattern. A flat list once shipped a wheel
 # without them; tests/test_packaging.py now checks every package dir is covered.
-include = ["server*", "drivers*", "mcp_adapter*", "cli*"]
+include = ["open_mhs*"]
 
 [tool.setuptools.package-data]
 # The canonical schema lives at schema/capability_schema.json. A byte-identical copy is
 # packaged here so `pip install open-mhs` ships it; tests/test_packaging.py fails if the
 # two ever differ.
-server = ["capability_schema.json"]
+"open_mhs.server" = ["capability_schema.json"]
 # The reference drivers' tags. Canonical copies live in examples/; same drift test.
-drivers = ["tags/*.mhs"]
+"open_mhs.drivers" = ["tags/*.mhs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

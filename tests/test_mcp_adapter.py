@@ -16,8 +16,8 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from mcp_adapter import server as adapter
-from mcp_adapter.client import OpenMHSClient
+from open_mhs.mcp_adapter import server as adapter
+from open_mhs.mcp_adapter.client import OpenMHSClient
 from tests.conftest import AUTH_HEADERS, TEST_TOKEN
 
 
@@ -245,8 +245,8 @@ async def test_confirmed_write_to_a_gated_actuator_succeeds(mcp_wired, arm_devic
 async def test_state_desync_tells_the_model_to_stop_and_re_read(
     arm_factory, gripper_device, temp_device
 ) -> None:
-    from server.main import create_app
-    from server.registry import Registry
+    from open_mhs.server.main import create_app
+    from open_mhs.server.registry import Registry
 
     arm = arm_factory(ignore_writes={"joint_1"})
     registry = Registry()
@@ -396,7 +396,7 @@ async def test_an_estop_violation_tells_the_model_the_device_has_stopped(
 @pytest_asyncio.fixture
 async def bare_client(registry) -> AsyncIterator[httpx.AsyncClient]:
     """A client with NO default auth headers, so the adapter must supply the token itself."""
-    from server.main import create_app
+    from open_mhs.server.main import create_app
 
     app = create_app(registry, load_mocks=False, auth_token=TEST_TOKEN)
     async with httpx.AsyncClient(

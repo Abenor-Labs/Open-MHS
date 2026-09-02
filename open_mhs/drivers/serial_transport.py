@@ -20,7 +20,7 @@ from typing import Any, Callable, Protocol
 
 import anyio
 
-from drivers.transport import Transport, TransportError
+from open_mhs.drivers.transport import Transport, TransportError
 
 log = logging.getLogger("open_mhs.serial")
 

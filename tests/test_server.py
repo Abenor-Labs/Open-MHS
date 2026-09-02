@@ -15,14 +15,14 @@ import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
-from server.errors import (
+from open_mhs.server.errors import (
     DEVICE_NOT_FOUND,
     INVALID_PARAMS,
     INVALID_REQUEST,
     METHOD_NOT_FOUND,
     PARSE_ERROR,
 )
-from server.models import CapabilityTag
+from open_mhs.server.models import CapabilityTag
 from tests.conftest import REPO_ROOT, rpc_error, rpc_result
 
 SCHEMA = json.loads((REPO_ROOT / "schema" / "capability_schema.json").read_text(encoding="utf-8"))

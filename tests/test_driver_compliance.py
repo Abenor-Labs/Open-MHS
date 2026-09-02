@@ -46,7 +46,7 @@ from typing import Any
 
 import pytest
 
-from server.errors import SAFETY_LIMIT_VIOLATION
+from open_mhs.server.errors import SAFETY_LIMIT_VIOLATION
 from tests.conftest import rpc_call, rpc_error, rpc_result
 
 DEVICE_ID = "panda-arm-01"

@@ -2,7 +2,7 @@
 
 Run over stdio (what Claude Desktop expects):
 
-    python -m mcp_adapter.server
+    python -m open_mhs.mcp_adapter.server
 
 Point it at a middleware other than localhost:8000 with `OPEN_MHS_URL`.
 
@@ -18,13 +18,13 @@ import os
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
-from mcp_adapter.client import (
+from open_mhs.mcp_adapter.client import (
     OpenMHSClient,
     OpenMHSUnreachable,
     RemoteRPCError,
     Unauthorized,
 )
-from mcp_adapter.formatting import (
+from open_mhs.mcp_adapter.formatting import (
     format_check,
     format_discovery,
     format_emergency_stop,
@@ -297,7 +297,7 @@ async def emergency_stop_all_hardware() -> str:
 
 
 def main() -> None:
-    """Entry point for `python -m mcp_adapter.server` and the `open-mhs-mcp` script."""
+    """Entry point for `python -m open_mhs.mcp_adapter.server` and the `open-mhs-mcp` script."""
     mcp.run("stdio")
 
 

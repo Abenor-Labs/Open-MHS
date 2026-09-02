@@ -19,10 +19,10 @@ import logging
 import time
 from typing import Any
 
-from server.audit import AuditLog
-from server.errors import MHSError
-from server.models import Actuator, SafetyLimit
-from server.registry import DeviceRecord
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.errors import MHSError
+from open_mhs.server.models import Actuator, SafetyLimit
+from open_mhs.server.registry import DeviceRecord
 
 log = logging.getLogger("open_mhs.watchdog")
 

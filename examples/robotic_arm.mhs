@@ -10,7 +10,7 @@
   "driver": {
     "transport": "serial",
     "address": "/dev/ttyUSB0",
-    "module": "drivers.ref_arm:RefArm",
+    "module": "open_mhs.drivers.ref_arm:RefArm",
     "timeout_ms": 1000
   },
   "sensors": [

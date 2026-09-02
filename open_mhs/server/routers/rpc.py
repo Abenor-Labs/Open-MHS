@@ -31,10 +31,10 @@ from typing import Any, Awaitable, Callable
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import ValidationError
 
-from server import safety
-from server.audit import AuditLog
-from server.deps import get_audit, get_registry, get_watchdog
-from server.errors import (
+from open_mhs.server import safety
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.deps import get_audit, get_registry, get_watchdog
+from open_mhs.server.errors import (
     HardwareExecutionError,
     InvalidParams,
     InvalidRequest,
@@ -42,7 +42,7 @@ from server.errors import (
     MHSError,
     ParseError,
 )
-from server.models import (
+from open_mhs.server.models import (
     Actuator,
     CheckParams,
     DiscoverParams,
@@ -54,8 +54,8 @@ from server.models import (
     SnapshotParams,
     WriteParams,
 )
-from server.registry import DeviceRecord, Registry
-from server.watchdog import Watchdog
+from open_mhs.server.registry import DeviceRecord, Registry
+from open_mhs.server.watchdog import Watchdog
 
 log = logging.getLogger("open_mhs.rpc")
 

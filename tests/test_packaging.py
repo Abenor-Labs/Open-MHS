@@ -10,7 +10,7 @@ import pytest
 from tests.conftest import REPO_ROOT
 
 CANONICAL = REPO_ROOT / "schema" / "capability_schema.json"
-PACKAGED = REPO_ROOT / "server" / "capability_schema.json"
+PACKAGED = REPO_ROOT / "open_mhs" / "server" / "capability_schema.json"
 
 
 def test_packaged_schema_is_byte_identical_to_the_canonical_one() -> None:
@@ -25,17 +25,17 @@ def test_packaged_schema_is_byte_identical_to_the_canonical_one() -> None:
 def test_packaged_reference_tags_match_the_examples(name: str) -> None:
     """The reference drivers load their tags from inside the wheel. `open-mhs serve`
     once crashed after `pip install` because they read from examples/, which is not
-    shipped. If this fails: `cp examples/<name> drivers/tags/<name>`."""
-    packaged = REPO_ROOT / "drivers" / "tags" / name
+    shipped. If this fails: `cp examples/<name> open_mhs/drivers/tags/<name>`."""
+    packaged = REPO_ROOT / "open_mhs" / "drivers" / "tags" / name
     canonical = REPO_ROOT / "examples" / name
     assert packaged.read_bytes() == canonical.read_bytes()
 
 
 def test_reference_drivers_construct_without_the_repo_checkout(tmp_path, monkeypatch) -> None:
     """Their tag paths must be absolute and inside the package, not repo-relative."""
-    from drivers.mock_pump import MockPump
-    from drivers.mock_robotic_arm import MockRoboticArm
-    from drivers.mock_temp_sensor import MockTempSensor
+    from open_mhs.drivers.mock_pump import MockPump
+    from open_mhs.drivers.mock_robotic_arm import MockRoboticArm
+    from open_mhs.drivers.mock_temp_sensor import MockTempSensor
 
     monkeypatch.chdir(tmp_path)
     for cls in (MockTempSensor, MockRoboticArm, MockPump):
@@ -43,7 +43,7 @@ def test_reference_drivers_construct_without_the_repo_checkout(tmp_path, monkeyp
 
 
 def test_packaged_schema_is_reachable_as_package_data() -> None:
-    text = resources.files("server").joinpath("capability_schema.json").read_text("utf-8")
+    text = resources.files("open_mhs.server").joinpath("capability_schema.json").read_text("utf-8")
     schema = json.loads(text)
     assert schema["$schema"].startswith("https://json-schema.org/draft/2020-12")
 
@@ -58,7 +58,7 @@ def test_every_package_directory_is_covered_by_package_discovery() -> None:
 
     cfg = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
     patterns = cfg["tool"]["setuptools"]["packages"]["find"]["include"]
-    roots = ["server", "drivers", "mcp_adapter", "cli"]
+    roots = ["open_mhs"]
     missing = []
     for root in roots:
         for init in (REPO_ROOT / root).rglob("__init__.py"):
@@ -73,5 +73,5 @@ def test_cli_console_script_is_declared() -> None:
     import tomllib
 
     scripts = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))["project"]["scripts"]
-    assert scripts["open-mhs"] == "cli.main:main"
-    assert scripts["open-mhs-mcp"] == "mcp_adapter.server:main"
+    assert scripts["open-mhs"] == "open_mhs.cli.main:main"
+    assert scripts["open-mhs-mcp"] == "open_mhs.mcp_adapter.server:main"

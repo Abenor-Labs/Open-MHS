@@ -41,11 +41,11 @@ import uvicorn
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from drivers.base import BaseDevice  # noqa: E402
-from drivers.transport import Transport, TransportError  # noqa: E402
-from server.errors import SafetyLimitViolation  # noqa: E402
-from server.main import create_app  # noqa: E402
-from server.registry import Registry  # noqa: E402
+from open_mhs.drivers.base import BaseDevice  # noqa: E402
+from open_mhs.drivers.transport import Transport, TransportError  # noqa: E402
+from open_mhs.server.errors import SafetyLimitViolation  # noqa: E402
+from open_mhs.server.main import create_app  # noqa: E402
+from open_mhs.server.registry import Registry  # noqa: E402
 
 TAG_PATH = Path(__file__).with_name("live_arm.mhs")
 SIM_HZ = 240.0

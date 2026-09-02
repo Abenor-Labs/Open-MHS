@@ -9,7 +9,7 @@
   "description": "Simulated two-channel environmental sensor used to exercise the Discovery and Execution layers with no hardware attached. Read-only: it declares no actuators, so write() is rejected for every target.",
   "driver": {
     "transport": "mock",
-    "module": "drivers.mock_temp_sensor:MockTempSensor",
+    "module": "open_mhs.drivers.mock_temp_sensor:MockTempSensor",
     "timeout_ms": 500
   },
   "sensors": [

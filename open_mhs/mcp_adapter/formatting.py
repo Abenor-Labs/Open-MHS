@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from mcp_adapter.client import OpenMHSUnreachable, RemoteRPCError, Unauthorized
-from server.errors import (
+from open_mhs.mcp_adapter.client import OpenMHSUnreachable, RemoteRPCError, Unauthorized
+from open_mhs.server.errors import (
     DEVICE_NOT_FOUND,
     HARDWARE_EXECUTION_ERROR,
     INVALID_PARAMS,

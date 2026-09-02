@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from fastapi import Request
 
-from server.audit import AuditLog
-from server.registry import Registry
-from server.watchdog import Watchdog
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.registry import Registry
+from open_mhs.server.watchdog import Watchdog
 
 
 def get_registry(request: Request) -> Registry:

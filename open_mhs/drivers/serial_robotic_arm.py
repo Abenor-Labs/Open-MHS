@@ -12,7 +12,7 @@ says `software` rather than claiming `firmware`.
 
 Run it against real hardware:
 
-    python -m drivers.serial_robotic_arm --port /dev/ttyUSB0 --registry http://127.0.0.1:8000
+    python -m open_mhs.drivers.serial_robotic_arm --port /dev/ttyUSB0 --registry http://127.0.0.1:8000
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ import asyncio
 import re
 from typing import Any
 
-from drivers.base import BaseDevice
-from drivers.serial_transport import SerialTransport
-from drivers.transport import TransportError
+from open_mhs.drivers.base import BaseDevice
+from open_mhs.drivers.serial_transport import SerialTransport
+from open_mhs.drivers.transport import TransportError
 
 TAG_PATH = "examples/serial_arm.mhs"
 

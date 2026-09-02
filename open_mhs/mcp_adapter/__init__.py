@@ -6,7 +6,7 @@ job is to turn Open-MHS responses — successes and refusals alike — into text
 model can act on.
 """
 
-from mcp_adapter.client import (
+from open_mhs.mcp_adapter.client import (
     OpenMHSClient,
     OpenMHSUnreachable,
     RemoteRPCError,

@@ -50,8 +50,8 @@ TAG = REPO_ROOT / "examples" / "bench_pump.mhs"
 
 def export_module(tag_path: Path, out_dir: Path) -> ModuleType:
     """Step 1 and 2: tag -> source -> imported module. What `open-mhs export` does."""
-    from cli.export import generate
-    from server.models import CapabilityTag
+    from open_mhs.cli.export import generate
+    from open_mhs.server.models import CapabilityTag
 
     tag = CapabilityTag.model_validate(json.loads(tag_path.read_text(encoding="utf-8")))
     source = generate(tag)

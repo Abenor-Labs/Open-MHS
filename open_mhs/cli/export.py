@@ -19,7 +19,7 @@ import json
 import re
 from typing import Any
 
-from server.models import CapabilityTag
+from open_mhs.server.models import CapabilityTag
 
 PY_TYPES = {
     "number": "float",

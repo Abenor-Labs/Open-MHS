@@ -14,8 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from drivers.base import BaseDevice
-from drivers.transport import InMemoryTransport
+from open_mhs.drivers.base import BaseDevice
+from open_mhs.drivers.transport import InMemoryTransport
 
 TAG_PATH = Path(__file__).parent / "tags" / "robotic_arm.mhs"
 

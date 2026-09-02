@@ -6,7 +6,7 @@ discovery plus the `read` primitive.
 
 Run standalone to register against a live middleware instance:
 
-    python -m drivers.mock_temp_sensor --registry http://127.0.0.1:8000
+    python -m open_mhs.drivers.mock_temp_sensor --registry http://127.0.0.1:8000
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ import random
 from pathlib import Path
 from typing import Any
 
-from drivers.base import BaseDevice
-from drivers.transport import InMemoryTransport
+from open_mhs.drivers.base import BaseDevice
+from open_mhs.drivers.transport import InMemoryTransport
 
 TAG_PATH = Path(__file__).parent / "tags" / "mock_temp_sensor.mhs"
 

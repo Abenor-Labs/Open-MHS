@@ -38,8 +38,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from cell import Workcell                     # noqa: E402
 from cv_camera import CVCameraDevice          # noqa: E402
 from panda_arm import PandaArmDevice          # noqa: E402
-from server.main import create_app            # noqa: E402
-from server.registry import Registry          # noqa: E402
+from open_mhs.server.main import create_app            # noqa: E402
+from open_mhs.server.registry import Registry          # noqa: E402
 
 
 def build(token: str, render: bool = False, interactive: bool = False,

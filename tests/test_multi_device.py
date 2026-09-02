@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from server.errors import DEVICE_NOT_FOUND, INVALID_PARAMS, SAFETY_LIMIT_VIOLATION
+from open_mhs.server.errors import DEVICE_NOT_FOUND, INVALID_PARAMS, SAFETY_LIMIT_VIOLATION
 from tests.conftest import REPO_ROOT, TEST_TOKEN, rpc_error, rpc_result
 
 # --------------------------------------------------------------------------------------
@@ -217,7 +217,7 @@ async def test_cell_agent_runs_clean_against_the_default_mocks(tmp_path, monkeyp
     """The shipped multi-device example must pass against the shipped devices, no hardware."""
     import uvicorn
 
-    from server.main import create_app
+    from open_mhs.server.main import create_app
 
     monkeypatch.setenv("OPEN_MHS_AUDIT_LOG", str(tmp_path / "audit.jsonl"))
     port = _free_port()

@@ -19,9 +19,9 @@ from typing import AsyncIterator, Sequence
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from server.audit import AuditLog
-from server.auth import AuthPolicy, load_tokens, require_auth
-from server.errors import (
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.auth import AuthPolicy, load_tokens, require_auth
+from open_mhs.server.errors import (
     DEVICE_NOT_FOUND,
     HARDWARE_EXECUTION_ERROR,
     INVALID_PARAMS,
@@ -29,10 +29,10 @@ from server.errors import (
     STATE_DESYNC,
     MHSError,
 )
-from server.models import LATEST_SPEC_VERSION, SUPPORTED_SPEC_VERSIONS, HealthResponse
-from server.registry import Registry
-from server.routers import discovery, rpc
-from server.watchdog import Watchdog
+from open_mhs.server.models import LATEST_SPEC_VERSION, SUPPORTED_SPEC_VERSIONS, HealthResponse
+from open_mhs.server.registry import Registry
+from open_mhs.server.routers import discovery, rpc
+from open_mhs.server.watchdog import Watchdog
 
 log = logging.getLogger("open_mhs")
 
@@ -49,9 +49,9 @@ HTTP_STATUS_FOR_CODE: dict[int, int] = {
 
 def load_mock_devices(registry: Registry) -> None:
     """Bind the bundled reference drivers so a fresh checkout has something to talk to."""
-    from drivers.mock_pump import MockPump
-    from drivers.mock_robotic_arm import MockRoboticArm
-    from drivers.mock_temp_sensor import MockTempSensor
+    from open_mhs.drivers.mock_pump import MockPump
+    from open_mhs.drivers.mock_robotic_arm import MockRoboticArm
+    from open_mhs.drivers.mock_temp_sensor import MockTempSensor
 
     for driver in (MockTempSensor(), MockRoboticArm(), MockPump()):
         registry.register(driver.tag, driver)

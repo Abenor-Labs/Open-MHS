@@ -23,14 +23,14 @@ from abc import ABC
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from drivers.transport import InMemoryTransport, Transport, TransportError
-from server import safety
-from server.errors import HardwareExecutionError, InvalidParams, StateDesync
-from server.models import Actuator, CapabilityTag, SafetyLimit, Sensor
+from open_mhs.drivers.transport import InMemoryTransport, Transport, TransportError
+from open_mhs.server import safety
+from open_mhs.server.errors import HardwareExecutionError, InvalidParams, StateDesync
+from open_mhs.server.models import Actuator, CapabilityTag, SafetyLimit, Sensor
 
 log = logging.getLogger("open_mhs.driver")
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOLERANCE = 1e-6
 
 Sleeper = Callable[[float], Awaitable[None]]

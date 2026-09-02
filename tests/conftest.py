@@ -20,12 +20,12 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from drivers.base import BaseDevice
-from drivers.mock_robotic_arm import MockRoboticArm
-from drivers.mock_temp_sensor import MockTempSensor
-from drivers.transport import InMemoryTransport
-from server.main import create_app
-from server.registry import Registry
+from open_mhs.drivers.base import BaseDevice
+from open_mhs.drivers.mock_robotic_arm import MockRoboticArm
+from open_mhs.drivers.mock_temp_sensor import MockTempSensor
+from open_mhs.drivers.transport import InMemoryTransport
+from open_mhs.server.main import create_app
+from open_mhs.server.registry import Registry
 
 #: Token used by every test app. Long enough to satisfy the production minimum, so the
 #: suite exercises the same code path a real deployment does.

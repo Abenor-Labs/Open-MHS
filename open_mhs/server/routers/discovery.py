@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from server.audit import AuditLog
-from server.deps import get_audit, get_registry
-from server.models import (
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.deps import get_audit, get_registry
+from open_mhs.server.models import (
     CapabilityTag,
     DeregisterResponse,
     DeviceSummary,
@@ -19,7 +19,7 @@ from server.models import (
     HeartbeatResponse,
     RegisterResponse,
 )
-from server.registry import Registry
+from open_mhs.server.registry import Registry
 
 router = APIRouter(tags=["discovery"])
 

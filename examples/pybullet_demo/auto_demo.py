@@ -531,9 +531,9 @@ def load_checker() -> tuple[object, bool]:
     sys.path.insert(0, str(REPO_ROOT))
     tag_doc = json.loads(TAG_PATH.read_text(encoding="utf-8"))
     try:
-        from server import safety
-        from server.errors import SafetyLimitViolation
-        from server.models import CapabilityTag
+        from open_mhs.server import safety
+        from open_mhs.server.errors import SafetyLimitViolation
+        from open_mhs.server.models import CapabilityTag
 
         tag = CapabilityTag.model_validate(tag_doc)
         actuator = tag.actuator_map[TARGET]

@@ -11,11 +11,11 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from drivers.base import BaseDevice
-from drivers.transport import InMemoryTransport
-from server.audit import AuditLog
-from server.main import create_app
-from server.registry import Registry
+from open_mhs.drivers.base import BaseDevice
+from open_mhs.drivers.transport import InMemoryTransport
+from open_mhs.server.audit import AuditLog
+from open_mhs.server.main import create_app
+from open_mhs.server.registry import Registry
 from tests.conftest import AUTH_HEADERS, FIXTURES, TEST_TOKEN, _no_sleep, load_tag, rpc_call
 
 SETTLE = 0.5  # >3x the fixture's max_duration_s: an ASGI round trip on Windows is ~20 ms
@@ -152,7 +152,7 @@ async def test_a_refused_return_falls_back_to_emergency_stop(tmp_path: Path) -> 
 
 @pytest.mark.asyncio
 async def test_shutdown_cancels_pending_timers(pump) -> None:
-    from server.watchdog import Watchdog
+    from open_mhs.server.watchdog import Watchdog
     wd = Watchdog(AuditLog(None))
     reg = Registry()
     record = reg.register(pump.tag, pump)

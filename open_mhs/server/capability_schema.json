@@ -105,7 +105,7 @@
           "maxLength": 256
         },
         "module": {
-          "description": "Python import path of the driver class implementing read()/write(), e.g. 'drivers.mock_temp_sensor:MockTempSensor'.",
+          "description": "Python import path of the driver class implementing read()/write(), e.g. 'open_mhs.drivers.mock_temp_sensor:MockTempSensor'.",
           "type": "string",
           "maxLength": 256
         },

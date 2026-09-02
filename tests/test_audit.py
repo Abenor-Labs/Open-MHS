@@ -8,10 +8,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from server.audit import GENESIS, AuditLog, verify
-from server.errors import SAFETY_LIMIT_VIOLATION
-from server.main import create_app
-from server.registry import Registry
+from open_mhs.server.audit import GENESIS, AuditLog, verify
+from open_mhs.server.errors import SAFETY_LIMIT_VIOLATION
+from open_mhs.server.main import create_app
+from open_mhs.server.registry import Registry
 from tests.conftest import AUTH_HEADERS, TEST_TOKEN, rpc_call
 
 
