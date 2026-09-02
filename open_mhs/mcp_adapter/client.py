@@ -7,10 +7,26 @@ knowing about the other.
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
 import httpx
+
+from open_mhs.server.errors import INVALID_PARAMS
+
+
+def _describe(params: dict[str, Any]) -> dict[str, Any]:
+    """Params rendered safely for an error message, with unencodable values named."""
+    out: dict[str, Any] = {}
+    for key, value in params.items():
+        try:
+            json.dumps(value, allow_nan=False)
+            out[key] = value
+        except (ValueError, TypeError):
+            out[key] = f"<unencodable {type(value).__name__}: {value!r}>"
+    return out
+
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_TIMEOUT_S = 10.0
@@ -119,15 +135,32 @@ class OpenMHSClient:
     async def rpc(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         """POST /rpc — returns the `result` member, or raises `RemoteRPCError`."""
         body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        # Serialised here rather than by the transport so that a value which cannot be
+        # encoded — a NaN, an infinity, anything exotic a caller passed through — fails
+        # as a clear error naming the value, instead of surfacing from inside the HTTP
+        # client. An agent that sends `inf` deserves to be told that, not a traceback.
+        try:
+            encoded = json.dumps(body, allow_nan=False)
+        except (ValueError, TypeError) as exc:
+            raise RemoteRPCError({
+                "code": INVALID_PARAMS,
+                "message": f"{method}: the request could not be encoded as JSON ({exc})",
+                "data": {"method": method, "params": _describe(params)},
+            }) from exc
+
         try:
             response = await self._http().post(
-                self._url("/rpc"), json=body, headers=self._headers()
+                self._url("/rpc"),
+                content=encoded,
+                headers={**self._headers(), "Content-Type": "application/json"},
             )
-            if response.status_code == 401:
-                raise Unauthorized(self.base_url, self.has_token)
-            payload = response.json()
         except httpx.HTTPError as exc:
             raise OpenMHSUnreachable(self.base_url, str(exc)) from exc
+
+        if response.status_code == 401:
+            raise Unauthorized(self.base_url, self.has_token)
+        try:
+            payload = response.json()
         except ValueError as exc:  # non-JSON body from something that is not Open-MHS
             raise OpenMHSUnreachable(
                 self.base_url, f"expected a JSON-RPC response, got {response.text[:200]!r}"

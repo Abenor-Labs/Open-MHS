@@ -12,6 +12,7 @@ and a model behind MCP read identical words when a write is refused.
     open-mhs describe examples/robotic_arm.mhs      # no server needed
     open-mhs export examples/robotic_arm.mhs --out arm01.py   # the code-file gate
     open-mhs doc examples/robotic_arm.mhs --out DEVICE.md     # the reference a model reads
+    open-mhs bench --out benchmark.md                         # what does it actually refuse?
     open-mhs audit verify open-mhs-audit.jsonl     # no server needed
     open-mhs serve [--host] [--port] [--no-mocks]
 
@@ -125,6 +126,15 @@ def build_parser() -> argparse.ArgumentParser:
     doc.add_argument("--url", default="http://127.0.0.1:8000",
                      help="middleware URL to print in the MCP client snippet")
 
+    b = sub.add_parser(
+        "bench",
+        help="try everything worth trying against every registered device and report "
+             "what was refused",
+    )
+    b.add_argument("--out", default=None, help="write the Markdown report here")
+    b.add_argument("--json", default=None, help="also write machine-readable results here")
+    b.add_argument("--quiet", action="store_true", help="suppress the live summary")
+
     a = sub.add_parser("audit", help="audit log tools")
     asub = a.add_subparsers(dest="audit_cmd", required=True)
     asub.add_parser("verify", help="walk the hash chain").add_argument("file")
@@ -154,6 +164,8 @@ async def _run(args: argparse.Namespace, client: OpenMHSClient) -> int:
             })
             print(format_write(result))
             return EXIT_OK
+        if args.cmd == "bench":
+            return await _bench(args, client)
         if args.cmd == "snapshot":
             params = {"device_ids": args.devices} if args.devices else {}
             print(format_snapshot(await client.rpc("mhs.snapshot", params)))
@@ -184,6 +196,28 @@ async def _run(args: argparse.Namespace, client: OpenMHSClient) -> int:
         print(format_unreachable(exc))
         return EXIT_UNREACHABLE
     return EXIT_USAGE
+
+
+async def _bench(args: argparse.Namespace, client: OpenMHSClient) -> int:
+    """Run the safety benchmark and write the report.
+
+    Exit code is non-zero if any refusal moved the hardware. A leak is the one outcome
+    that makes the rest of the numbers meaningless, so it is the one that fails the run.
+    """
+    from open_mhs.bench import Bench, to_console, to_json, to_markdown
+
+    run = await Bench(client).run(url=client.base_url)
+    if not args.quiet:
+        print(to_console(run))
+    if args.out:
+        Path(args.out).write_text(to_markdown(run), encoding="utf-8")
+        print(f"report: {args.out}")
+    if args.json:
+        Path(args.json).write_text(to_json(run), encoding="utf-8")
+        print(f"results: {args.json}")
+    if not args.out and not args.json and args.quiet:
+        print(to_markdown(run), end="")
+    return EXIT_REFUSED if run.leaks else EXIT_OK
 
 
 def _describe(path: str) -> int:
