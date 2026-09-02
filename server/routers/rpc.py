@@ -4,8 +4,11 @@
 
     mhs.discover            read-only   list devices and their capability tags
     mhs.read                read-only   read one sensor or actuator state
+    mhs.snapshot            read-only   every channel of every device, in one call
+    mhs.check               read-only   dry-run a list of writes; nothing is transmitted
     mhs.write               MUTATING    command one actuator, inside its limits
     mhs.emergency_stop      MUTATING    drive a device to its declared safe state
+    mhs.emergency_stop_all  MUTATING    drive every device that can stop to its safe state
 
 Bare `read` / `write` are accepted as aliases.
 
@@ -41,11 +44,14 @@ from server.errors import (
 )
 from server.models import (
     Actuator,
+    CheckParams,
     DiscoverParams,
+    EmergencyStopAllParams,
     EmergencyStopParams,
     JsonRpcRequest,
     ReadParams,
     SafetyLimit,
+    SnapshotParams,
     WriteParams,
 )
 from server.registry import DeviceRecord, Registry
@@ -314,6 +320,117 @@ async def _emergency_stop(
 
 
 # --------------------------------------------------------------------------------------
+# Multi-device methods
+# --------------------------------------------------------------------------------------
+
+
+async def _snapshot(params: SnapshotParams, registry: Registry, ctx: Ctx) -> dict[str, Any]:
+    """Every readable channel of every device, in one call. Reads never mutate.
+
+    A channel that cannot be read is reported inline with its error; one dead sensor must
+    not hide the state of the rest of the cell.
+    """
+    if params.device_ids:
+        records = [registry.get(device_id) for device_id in params.device_ids]
+    else:
+        records = registry.list()
+    devices: dict[str, Any] = {}
+    for record in records:
+        tag = record.tag
+        channels: dict[str, Any] = {}
+        for target in sorted(set(tag.sensor_map) | set(tag.actuator_map)):
+            channel = tag.sensor_map.get(target) or tag.actuator_map[target]
+            if record.driver is None:
+                channels[target] = {
+                    "error": HardwareExecutionError(
+                        f"{record.device_id}: no driver bound",
+                        {"device_id": record.device_id, "target": target},
+                    ).to_rpc()
+                }
+                continue
+            try:
+                value = await _guard_hardware(record.driver.read(target), record.device_id, target)
+                channels[target] = {"value": value, "unit": channel.unit}
+            except MHSError as exc:
+                channels[target] = {"error": exc.to_rpc()}
+        devices[record.device_id] = {"online": record.is_online(), "channels": channels}
+    return {"count": len(devices), "timestamp": time.time(), "devices": devices}
+
+
+async def _check(params: CheckParams, registry: Registry, ctx: Ctx) -> dict[str, Any]:
+    """Dry-run a plan.
+
+    Each item is evaluated exactly as `mhs.write` would evaluate it: same registry copy of
+    the limits, same live conditional state, same rate context. Nothing is transmitted and
+    no emergency stop runs. Items are independent: a later write to the same target is
+    checked against the CURRENT state, not against an earlier item in the plan.
+    """
+    results: list[dict[str, Any]] = []
+    for index, item in enumerate(params.writes):
+        entry: dict[str, Any] = {
+            "index": index, "device_id": item.device_id, "target": item.target,
+        }
+        try:
+            record = registry.get(item.device_id)
+            _, _, _, decision = await _evaluate(
+                record,
+                WriteParams(device_id=item.device_id, target=item.target,
+                            value=item.value, confirm=item.confirm),
+            )
+            entry.update(ok=True, would_transmit=decision.value, clamped=decision.clamped)
+            if decision.clamped:
+                entry["requested"] = decision.original
+                entry["clamp_reason"] = decision.reason
+        except MHSError as exc:
+            entry.update(ok=False, error=exc.to_rpc())
+        results.append(entry)
+    ok = all(r["ok"] for r in results)
+    ctx.audit.record(
+        "check", device_id=None, target=None,
+        params={"count": len(results)},
+        outcome={"ok": ok, "refused": [r["index"] for r in results if not r["ok"]]},
+    )
+    return {"ok": ok, "count": len(results), "transmitted": False, "results": results}
+
+
+async def _emergency_stop_all(
+    params: EmergencyStopAllParams, registry: Registry, ctx: Ctx
+) -> dict[str, Any]:
+    """Stop everything that can be stopped. A failure on one device never halts the loop."""
+    devices: dict[str, Any] = {}
+    failed = 0
+    for record in registry.list():
+        estop = record.tag.emergency_stop
+        if estop is None or not estop.supported:
+            devices[record.device_id] = {
+                "stopped": False, "skipped": "declares no emergency stop",
+            }
+            continue
+        if record.driver is None:
+            devices[record.device_id] = {"stopped": False, "error": "no driver bound"}
+            failed += 1
+            continue
+        try:
+            result = await record.driver.emergency_stop()
+            record.last_write.clear()
+            ctx.watchdog.cancel(record.device_id)
+            devices[record.device_id] = {"stopped": True, **result}
+        except Exception as exc:  # noqa: BLE001 - keep stopping the others
+            devices[record.device_id] = {
+                "stopped": False, "error": f"{type(exc).__name__}: {exc}",
+            }
+            failed += 1
+    ctx.audit.record(
+        "estop_all", device_id=None, target=None, params={},
+        outcome={
+            "count": len(devices), "failed": failed,
+            "stopped": sorted(d for d, r in devices.items() if r["stopped"]),
+        },
+    )
+    return {"count": len(devices), "failed": failed, "devices": devices}
+
+
+# --------------------------------------------------------------------------------------
 # Helpers
 # --------------------------------------------------------------------------------------
 
@@ -358,6 +475,9 @@ METHODS: dict[str, tuple[type, Handler]] = {
     "mhs.read": (ReadParams, _read),
     "mhs.write": (WriteParams, _write),
     "mhs.emergency_stop": (EmergencyStopParams, _emergency_stop),
+    "mhs.snapshot": (SnapshotParams, _snapshot),
+    "mhs.check": (CheckParams, _check),
+    "mhs.emergency_stop_all": (EmergencyStopAllParams, _emergency_stop_all),
     # Legacy bare aliases.
     "discover": (DiscoverParams, _discover),
     "read": (ReadParams, _read),

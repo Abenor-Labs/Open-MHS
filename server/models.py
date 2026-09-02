@@ -518,3 +518,26 @@ class EmergencyStopParams(Strict):
 class DiscoverParams(Strict):
     type: DeviceType | None = None
     online_only: bool = False
+
+
+class SnapshotParams(Strict):
+    """Every readable channel of every device, or of a named subset."""
+
+    device_ids: list[str] | None = Field(default=None, min_length=1)
+
+
+class CheckItem(Strict):
+    device_id: str
+    target: str
+    value: float | bool | str | list[float]
+    confirm: bool = False
+
+
+class CheckParams(Strict):
+    """A plan to dry-run. Nothing in it is transmitted."""
+
+    writes: list[CheckItem] = Field(min_length=1, max_length=100)
+
+
+class EmergencyStopAllParams(Strict):
+    pass
