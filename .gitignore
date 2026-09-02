@@ -45,3 +45,7 @@ examples/pybullet_demo/*.mp4
 
 # Local MCP wiring: contains the middleware token.
 .mcp.json
+
+# Audit logs from live sessions are records, not source.
+*-audit.jsonl
+open-mhs-audit.jsonl
