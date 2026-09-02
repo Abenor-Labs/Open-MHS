@@ -173,7 +173,9 @@ async def test_a_malformed_authorization_header_is_rejected(anon_client) -> None
 async def test_health_stays_public_so_liveness_probes_work(anon_client) -> None:
     response = await anon_client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "mhs_version": "0.1"}
+    assert response.json() == {
+        "status": "ok", "mhs_version": "0.2", "supported_spec_versions": ["0.1", "0.2"],
+    }
 
 
 # --------------------------------------------------------------------------------------

@@ -28,6 +28,9 @@ Unit = Annotated[str, StringConstraints(min_length=1, max_length=32)]
 SpecVersion = Literal["0.1", "0.2"]
 CONDITIONS_SINCE = "0.2"
 
+SUPPORTED_SPEC_VERSIONS: tuple[str, ...] = ("0.1", "0.2")
+LATEST_SPEC_VERSION: str = SUPPORTED_SPEC_VERSIONS[-1]
+
 DataType = Literal["number", "integer", "boolean", "string", "enum", "vector3"]
 NUMERIC_TYPES: frozenset[str] = frozenset({"number", "integer", "vector3"})
 
@@ -469,11 +472,14 @@ class HealthResponse(Strict):
     """Liveness only. Says nothing about what hardware is attached.
 
     `/health` is the one unauthenticated endpoint, so it must not leak an inventory to an
-    anonymous caller. Device counts live behind `/discover`.
+    anonymous caller. Device counts live behind `/discover`. It does state which spec
+    versions this reader accepts: a device about to register needs that, and it is not a
+    secret.
     """
 
     status: Literal["ok"]
     mhs_version: str
+    supported_spec_versions: list[str]
 
 
 # --------------------------------------------------------------------------------------

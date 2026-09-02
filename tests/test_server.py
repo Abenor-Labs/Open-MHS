@@ -34,10 +34,18 @@ SCHEMA = json.loads((REPO_ROOT / "schema" / "capability_schema.json").read_text(
 
 
 @pytest.mark.asyncio
-async def test_health_reports_liveness_and_nothing_else(client) -> None:
-    """The one public endpoint must not hand an anonymous caller a hardware inventory."""
+async def test_health_reports_liveness_and_spec_versions_and_nothing_else(client) -> None:
+    """The one public endpoint must not hand an anonymous caller a hardware inventory.
+
+    It DOES say which Capability Tag spec versions this reader accepts, because a device
+    about to register needs to know whether its tag will be understood.
+    """
     body = (await client.get("/health")).json()
-    assert body == {"status": "ok", "mhs_version": "0.1"}
+    assert body == {
+        "status": "ok",
+        "mhs_version": "0.2",
+        "supported_spec_versions": ["0.1", "0.2"],
+    }
     assert "devices" not in body
 
 

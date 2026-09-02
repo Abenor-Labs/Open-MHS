@@ -108,7 +108,7 @@ still read `vision`.
 ## Running things
 
 ```bash
-pytest                       # 184 tests, no hardware, ~2 s
+pytest                       # 207+ tests, no hardware, ~2 s
 ruff check .
 
 # robosuite digital twin (flagship)

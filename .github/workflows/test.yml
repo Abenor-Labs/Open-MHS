@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
         include:
           # The repo is developed on Windows and drivers deal in ports and paths, so one
           # Windows leg guards against path and line-ending assumptions.

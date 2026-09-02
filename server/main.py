@@ -28,13 +28,11 @@ from server.errors import (
     STATE_DESYNC,
     MHSError,
 )
-from server.models import HealthResponse
+from server.models import LATEST_SPEC_VERSION, SUPPORTED_SPEC_VERSIONS, HealthResponse
 from server.registry import Registry
 from server.routers import discovery, rpc
 
 log = logging.getLogger("open_mhs")
-
-MHS_VERSION = "0.1"
 
 #: MHSError codes -> HTTP status, for the REST surface only. The JSON-RPC surface always
 #: answers 200 with an error object, exactly as the JSON-RPC 2.0 specification requires.
@@ -92,7 +90,7 @@ def create_app(
 
     app = FastAPI(
         title="Open-MHS Middleware",
-        version=MHS_VERSION,
+        version=LATEST_SPEC_VERSION,
         summary="Vendor-neutral discovery and safe execution for AI-operated hardware.",
         description=(
             "Two primitives, one mutating surface. `read` observes; `write` commands an "
@@ -119,7 +117,11 @@ def create_app(
         Deliberately says nothing about what is connected: an anonymous caller learns that
         the middleware is up and nothing else. Device counts live behind `/discover`.
         """
-        return HealthResponse(status="ok", mhs_version=MHS_VERSION)
+        return HealthResponse(
+            status="ok",
+            mhs_version=LATEST_SPEC_VERSION,
+            supported_spec_versions=list(SUPPORTED_SPEC_VERSIONS),
+        )
 
     # Everything that can see or touch hardware sits behind the token. Applied at the
     # router level rather than per-endpoint so a new route cannot be added unprotected by

@@ -23,7 +23,7 @@ Canonical schema: [`schema/capability_schema.json`](../schema/capability_schema.
 
 | Field | Required | Purpose |
 |---|---|---|
-| `mhs_version` | yes | Spec version. Currently `"0.1"`. |
+| `mhs_version` | yes | Spec version: `"0.1"` or `"0.2"`. Any tag using `safety_limits[].conditions` must declare `"0.2"`. |
 | `device_id` | yes | Globally unique, reboot-stable addressing key. |
 | `name` | yes | Human-readable name. |
 | `type` | yes | Controlled vocabulary device class. |
@@ -189,3 +189,26 @@ PY
   No actuators, therefore no safety limits, therefore `write()` is rejected for every target.
 - [`examples/robotic_arm.mhs`](../examples/robotic_arm.mhs) — exercises numeric bounds with
   a rate cap, a discrete bound, a confirmation-gated actuator, and an e-stop safe state.
+
+## Conditional envelopes (spec 0.2)
+
+`safety_limits[].conditions` is a list of `{when_target, equals, min?, max?, rationale?}`.
+Conditions are evaluated in declaration order; the first whose `when_target` currently
+reads `equals` wins. A condition may only **narrow** the base bound: a `min` below the
+base `min` or a `max` above the base `max` is an ingestion error. The base bound is
+therefore always the worst case the device will accept and can be quoted on its own.
+
+Prefer a sensor as `when_target`, not the actuator that drives it. A gripper commanded
+closed that did not close must not unlock a bound that assumes a payload is held.
+
+If the `when_target` channel cannot be read at write time, the condition is skipped and
+the base bound applies. A failed read can only tighten the envelope, never loosen it.
+
+## `max_duration_s`
+
+Longest time an actuator may be held away from its `default` before the middleware forces
+it back. Enforced by the middleware's watchdog (see `docs/audit-log.md` for the event it
+writes). When the timer expires the middleware writes `default` through the normal safety
+path; if that write is refused (for example by `max_rate`) or the actuator declares no
+`default`, the device's emergency stop runs instead. Enforced at the middleware only: a
+driver used without the middleware does not run a watchdog.

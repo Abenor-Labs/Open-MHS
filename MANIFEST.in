@@ -1,0 +1,3 @@
+include schema/capability_schema.json
+include LICENSE
+include CHANGELOG.md

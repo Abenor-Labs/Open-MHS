@@ -41,7 +41,8 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["server", "drivers", "mcp_adapter"]
+packages = ["server", "drivers", "mcp_adapter", "cli"]
+include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
