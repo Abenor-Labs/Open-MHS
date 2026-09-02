@@ -10,6 +10,8 @@ and a model behind MCP read identical words when a write is refused.
     open-mhs check plan.json
     open-mhs estop arm-01 | --all
     open-mhs describe examples/robotic_arm.mhs      # no server needed
+    open-mhs export examples/robotic_arm.mhs --out arm01.py   # the code-file gate
+    open-mhs doc examples/robotic_arm.mhs --out DEVICE.md     # the reference a model reads
     open-mhs audit verify open-mhs-audit.jsonl     # no server needed
     open-mhs serve [--host] [--port] [--no-mocks]
 
@@ -105,6 +107,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument("tag")
 
+    x = sub.add_parser(
+        "export",
+        help="generate a standalone typed Python module for a device from its .mhs tag; "
+             "no server needed",
+    )
+    x.add_argument("tag")
+    x.add_argument("--out", default=None, help="write here instead of stdout")
+
+    doc = sub.add_parser(
+        "doc",
+        help="generate the Markdown reference an agent reads before touching this device; "
+             "no server needed",
+    )
+    doc.add_argument("tag")
+    doc.add_argument("--out", default=None, help="write here instead of stdout")
+    doc.add_argument("--url", default="http://127.0.0.1:8000",
+                     help="middleware URL to print in the MCP client snippet")
+
     a = sub.add_parser("audit", help="audit log tools")
     asub = a.add_subparsers(dest="audit_cmd", required=True)
     asub.add_parser("verify", help="walk the hash chain").add_argument("file")
@@ -184,6 +204,34 @@ def _describe(path: str) -> int:
     return EXIT_OK
 
 
+def _export(tag_path: str, out: str | None) -> int:
+    from cli.export import generate
+    from server.models import CapabilityTag
+
+    tag = CapabilityTag.model_validate(json.loads(Path(tag_path).read_text(encoding="utf-8")))
+    source = generate(tag)
+    if out:
+        Path(out).write_text(source, encoding="utf-8")
+        print(f"wrote {out}: class {source.split('class ')[2].split(':')[0]} for {tag.device_id}")
+    else:
+        print(source, end="")
+    return EXIT_OK
+
+
+def _doc(tag_path: str, out: str | None, url: str) -> int:
+    from cli.device_doc import generate
+    from server.models import CapabilityTag
+
+    tag = CapabilityTag.model_validate(json.loads(Path(tag_path).read_text(encoding="utf-8")))
+    text = generate(tag, url=url)
+    if out:
+        Path(out).write_text(text, encoding="utf-8")
+        print(f"wrote {out}: reference for {tag.device_id}")
+    else:
+        print(text, end="")
+    return EXIT_OK
+
+
 def _audit_verify(path: str) -> int:
     from server.audit import verify
 
@@ -215,6 +263,10 @@ async def amain(argv: list[str] | None = None, *, client: OpenMHSClient | None =
     args = build_parser().parse_args(argv)
     if args.cmd == "describe":
         return _describe(args.tag)
+    if args.cmd == "export":
+        return _export(args.tag, args.out)
+    if args.cmd == "doc":
+        return _doc(args.tag, args.out, args.url)
     if args.cmd == "audit":
         return _audit_verify(args.file)
     if args.cmd == "serve":
