@@ -54,6 +54,23 @@ Nothing in the script is specific to a device: it reads the tags and narrates wh
 registered, so the same eight beats work on the mock cell, on either simulator, and on real
 hardware.
 
+## Shot 0: the before
+
+Open with the same cell and the same command, with no middleware at all:
+
+```bash
+python examples/robosuite_demo/without_mhs.py --viewer
+```
+
+It moves over the red block and commands the tool to z = 0.70 m, ten centimetres below a
+table top at 0.800 m. Nothing checks it. The gripper is driven into the table and keeps
+pushing; measured, the tool bottoms out at about 0.808 m, and the only thing that stopped
+it was the table. The script exits non-zero if the physics do not show that, so the
+"before" is measured as honestly as the "after".
+
+Cut from that to the middleware refusing the identical command, and the video has made
+its argument before anyone says a word.
+
 ## The shot list
 
 | # | Beat | What the camera should catch |
