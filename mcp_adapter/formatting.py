@@ -350,3 +350,81 @@ _ERROR_RENDERERS = {
     STATE_DESYNC: _state_desync,
     METHOD_NOT_FOUND: _method_not_found,
 }
+
+
+# --------------------------------------------------------------------------------------
+# Multi-device
+# --------------------------------------------------------------------------------------
+
+
+def format_snapshot(result: dict[str, Any]) -> str:
+    lines = [f"SNAPSHOT of {result['count']} device(s):"]
+    for device_id, device in result["devices"].items():
+        status = "online" if device.get("online") else "OFFLINE"
+        lines.append(f"\n{device_id} ({status})")
+        for target, reading in device["channels"].items():
+            if "value" in reading:
+                unit = f" {reading['unit']}" if reading.get("unit") else ""
+                lines.append(f"  {target} = {reading['value']}{unit}")
+            else:
+                err = reading["error"]
+                lines.append(f"  {target}: UNREADABLE [{err.get('code')}] {err.get('message')}")
+    return "\n".join(lines)
+
+
+def format_check(result: dict[str, Any]) -> str:
+    if result["ok"]:
+        head = [
+            f"PLAN OK: all {result['count']} write(s) are inside their envelopes; "
+            "nothing was transmitted. Execute them with write_hardware_state, one at a time."
+        ]
+    else:
+        bad = sum(1 for r in result["results"] if not r["ok"])
+        head = [
+            f"PLAN REJECTED: {bad} of {result['count']} write(s) would be refused; "
+            "nothing was transmitted. Fix the items below before executing any of them."
+        ]
+    rows = []
+    for r in result["results"]:
+        label = f"#{r['index']} {r['device_id']}.{r['target']}"
+        if r["ok"]:
+            note = f"ok -> would transmit {r['would_transmit']}"
+            if r.get("clamped"):
+                note += f" (CLAMPED from {r.get('requested')}: {r.get('clamp_reason')})"
+            rows.append(f"  {label}: {note}")
+        else:
+            err = r["error"]
+            data = err.get("data") or {}
+            bound = ""
+            if "min" in data and "max" in data:
+                unit = data.get("unit") or ""
+                bound = f" - bound is [{data['min']}, {data['max']}] {unit}".rstrip()
+            elif "allowed_values" in data:
+                bound = f" - allowed: {data['allowed_values']}"
+            attempted = data.get("attempted", "")
+            rows.append(
+                f"  {label} = {attempted}: REFUSED [{err.get('code')}] "
+                f"{err.get('message')}{bound}"
+            )
+    return "\n".join(head + rows)
+
+
+def format_estop_all(result: dict[str, Any]) -> str:
+    stopped = sum(1 for r in result["devices"].values() if r.get("stopped"))
+    skipped = sum(1 for r in result["devices"].values() if "skipped" in r)
+    lines = [
+        f"EMERGENCY STOP ALL: {stopped} stopped, {skipped} skipped, "
+        f"{result['failed']} FAILED."
+    ]
+    for device_id, r in result["devices"].items():
+        if r.get("stopped"):
+            lines.append(f"  {device_id}: stopped -> {r.get('safe_state')}")
+        elif "skipped" in r:
+            lines.append(f"  {device_id}: skipped ({r['skipped']})")
+        else:
+            lines.append(f"  {device_id}: FAILED ({r.get('error')})")
+    if result["failed"]:
+        lines.append(
+            "A device that failed to stop is in an UNKNOWN state. Tell the operator now."
+        )
+    return "\n".join(lines)

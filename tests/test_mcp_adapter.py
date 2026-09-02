@@ -58,13 +58,16 @@ async def call(name: str, **arguments: Any) -> str:
 
 
 @pytest.mark.asyncio
-async def test_all_four_tools_are_registered() -> None:
+async def test_all_seven_tools_are_registered() -> None:
     names = {tool.name for tool in await adapter.mcp.list_tools()}
     assert names == {
         "discover_hardware",
         "read_hardware_state",
         "write_hardware_state",
         "emergency_stop_hardware",
+        "snapshot_hardware",
+        "check_hardware_plan",
+        "emergency_stop_all_hardware",
     }
 
 
@@ -462,3 +465,62 @@ async def test_the_token_never_appears_in_tool_output(bare_client) -> None:
     finally:
         adapter.set_client(None)
     assert TEST_TOKEN not in text
+
+
+# --------------------------------------------------------------------------------------
+# Multi-device tools
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_multi_device_tools_are_annotated_correctly() -> None:
+    tools = {tool.name: tool for tool in await adapter.mcp.list_tools()}
+    assert tools["snapshot_hardware"].annotations.readOnlyHint is True
+    assert tools["check_hardware_plan"].annotations.readOnlyHint is True
+    assert tools["emergency_stop_all_hardware"].annotations.destructiveHint is True
+
+
+@pytest.mark.asyncio
+async def test_snapshot_tool_lists_every_device_and_channel(mcp_wired) -> None:
+    text = await call("snapshot_hardware")
+    assert text.startswith("SNAPSHOT of 3 device(s)")
+    assert "arm-01" in text and "mock-temp-01" in text and "gripper-01" in text
+    assert "joint_1_actual = 0.0 deg" in text
+
+
+@pytest.mark.asyncio
+async def test_snapshot_tool_accepts_a_subset(mcp_wired) -> None:
+    text = await call("snapshot_hardware", device_ids=["arm-01"])
+    assert "SNAPSHOT of 1 device(s)" in text
+    assert "mock-temp-01" not in text
+
+
+@pytest.mark.asyncio
+async def test_check_tool_names_the_failing_item_and_the_bound(mcp_wired, arm_device) -> None:
+    text = await call("check_hardware_plan", writes=[
+        {"device_id": "arm-01", "target": "joint_1", "value": 45.0},
+        {"device_id": "arm-01", "target": "joint_1", "value": 500.0},
+    ])
+    assert text.startswith("PLAN REJECTED: 1 of 2")
+    assert "#0 arm-01.joint_1: ok -> would transmit 45.0" in text
+    assert "#1 arm-01.joint_1 = 500.0: REFUSED [-32001]" in text
+    assert "[-90.0, 90.0]" in text
+    assert arm_device.transport.writes == []
+
+
+@pytest.mark.asyncio
+async def test_check_tool_reports_a_clean_plan(mcp_wired, arm_device) -> None:
+    text = await call("check_hardware_plan", writes=[
+        {"device_id": "arm-01", "target": "joint_1", "value": 45.0},
+    ])
+    assert text.startswith("PLAN OK")
+    assert "nothing was transmitted" in text
+    assert arm_device.transport.writes == []
+
+
+@pytest.mark.asyncio
+async def test_stop_all_tool_reports_each_device(mcp_wired) -> None:
+    text = await call("emergency_stop_all_hardware")
+    assert text.startswith("EMERGENCY STOP ALL: 1 stopped, 2 skipped, 0 FAILED")
+    assert "arm-01: stopped" in text
+    assert "mock-temp-01: skipped (declares no emergency stop)" in text

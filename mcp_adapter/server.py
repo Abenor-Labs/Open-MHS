@@ -25,10 +25,13 @@ from mcp_adapter.client import (
     Unauthorized,
 )
 from mcp_adapter.formatting import (
+    format_check,
     format_discovery,
     format_emergency_stop,
+    format_estop_all,
     format_read,
     format_rpc_error,
+    format_snapshot,
     format_unauthorized,
     format_unreachable,
     format_write,
@@ -51,6 +54,11 @@ result.
 Some actuators require human confirmation. For those, ask the operator first, then re-send
 with confirm=true. If a command reports a state desync, stop and re-read the device: your
 model of the world and the world have diverged.
+
+For anything involving more than one write or more than one device: snapshot_hardware
+first, then check_hardware_plan with the whole plan, then execute the steps one at a time
+with write_hardware_state, then snapshot_hardware again. If anything is wrong and you are
+not sure which device, emergency_stop_all_hardware.
 """
 
 mcp = FastMCP(
@@ -197,6 +205,89 @@ async def emergency_stop_hardware(device_id: str) -> str:
     try:
         result = await get_client().rpc("mhs.emergency_stop", {"device_id": device_id})
         return format_emergency_stop(result)
+    except RemoteRPCError as exc:
+        return format_rpc_error(exc)
+    except Unauthorized as exc:
+        return format_unauthorized(exc)
+    except OpenMHSUnreachable as exc:
+        return format_unreachable(exc)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Snapshot all hardware",
+        readOnlyHint=True,
+        openWorldHint=True,
+    )
+)
+async def snapshot_hardware(device_ids: list[str] | None = None) -> str:
+    """Read every sensor and actuator of every device in one call. Changes nothing.
+
+    Use this before planning a multi-device action, and again after executing one, so
+    your model of the whole cell comes from the cell and not from memory. A channel that
+    cannot be read is reported inline; the rest of the snapshot is still valid.
+
+    Args:
+        device_ids: optional subset of device ids. Omit for every registered device.
+    """
+    try:
+        params = {"device_ids": device_ids} if device_ids else {}
+        return format_snapshot(await get_client().rpc("mhs.snapshot", params))
+    except RemoteRPCError as exc:
+        return format_rpc_error(exc)
+    except Unauthorized as exc:
+        return format_unauthorized(exc)
+    except OpenMHSUnreachable as exc:
+        return format_unreachable(exc)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Check a hardware plan (dry run)",
+        readOnlyHint=True,
+        openWorldHint=True,
+    )
+)
+async def check_hardware_plan(writes: list[dict]) -> str:
+    """Dry-run a list of writes across any devices. NOTHING MOVES.
+
+    Every item is evaluated against its device's current safety envelope exactly as
+    write_hardware_state would evaluate it. Use this to validate a multi-step or
+    multi-device plan before executing a single step of it. A rejected plan names every
+    failing item and the real bound it violated.
+
+    Args:
+        writes: list of objects {"device_id": ..., "target": ..., "value": ...,
+            "confirm": false}. Up to 100 items.
+    """
+    try:
+        return format_check(await get_client().rpc("mhs.check", {"writes": writes}))
+    except RemoteRPCError as exc:
+        return format_rpc_error(exc)
+    except Unauthorized as exc:
+        return format_unauthorized(exc)
+    except OpenMHSUnreachable as exc:
+        return format_unreachable(exc)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Emergency stop ALL hardware",
+        readOnlyHint=False,
+        destructiveHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    )
+)
+async def emergency_stop_all_hardware() -> str:
+    """Drive EVERY device to its declared safe state.
+
+    Use when anything is wrong and you are not sure which device is responsible. Devices
+    that declare no emergency stop are skipped and named. A device that fails to stop is
+    reported and the loop continues to the next one.
+    """
+    try:
+        return format_estop_all(await get_client().rpc("mhs.emergency_stop_all", {}))
     except RemoteRPCError as exc:
         return format_rpc_error(exc)
     except Unauthorized as exc:
