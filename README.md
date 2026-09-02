@@ -411,8 +411,9 @@ a bound was evaluated against described reality. Every guarantee sits downstream
       still calls itself `vision` while being 28 mm wrong. A device should be able to
       report *how much* to trust a reading, and the middleware should be able to refuse to
       act on a degraded one.
-- [ ] **Enforce `max_duration_s`.** The schema defines it; the middleware parses it and
-      ignores it. An unenforced field in a safety specification is worse than an absent one.
+- [x] **Enforce `max_duration_s`.** *Shipped in 0.2.0: a dead-man timer returns the
+      actuator to its default, or runs the emergency stop if that is refused. Every expiry
+      is audited.*
 - [x] **Conditional envelopes.** Bounds that change with device state. *Shipped in spec 0.2.*
 
 #### v0.3 — trust the sender

@@ -1,0 +1,20 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "deadman-pump-01",
+  "name": "Dead-man pump",
+  "type": "pump",
+  "description": "Test fixture: flow may not be held above zero for longer than max_duration_s.",
+  "sensors": [
+    { "id": "flow_actual", "datatype": "number", "unit": "ml_per_min", "accuracy": 0.01 }
+  ],
+  "actuators": [
+    { "id": "flow_rate", "datatype": "number", "unit": "ml_per_min", "default": 0.0,
+      "feedback_sensor": "flow_actual" }
+  ],
+  "safety_limits": [
+    { "target": "flow_rate", "unit": "ml_per_min", "min": 0.0, "max": 10.0,
+      "max_duration_s": 0.15, "on_violation": "reject",
+      "rationale": "A pump left running floods the tray." }
+  ],
+  "emergency_stop": { "supported": true, "safe_state": { "flow_rate": 0.0 } }
+}

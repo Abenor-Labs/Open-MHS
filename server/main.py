@@ -32,6 +32,7 @@ from server.errors import (
 from server.models import LATEST_SPEC_VERSION, SUPPORTED_SPEC_VERSIONS, HealthResponse
 from server.registry import Registry
 from server.routers import discovery, rpc
+from server.watchdog import Watchdog
 
 log = logging.getLogger("open_mhs")
 
@@ -91,6 +92,7 @@ def create_app(
         if load_mocks:
             load_mock_devices(app.state.registry)
         yield
+        app.state.watchdog.shutdown()
         app.state.registry.clear()
 
     app = FastAPI(
@@ -107,6 +109,7 @@ def create_app(
     app.state.registry = registry
     app.state.auth = AuthPolicy(tokens=tokens)
     app.state.audit = audit_log if audit_log is not None else AuditLog.from_env()
+    app.state.watchdog = Watchdog(app.state.audit)
 
     @app.exception_handler(MHSError)
     async def _mhs_error_handler(request: Request, exc: MHSError) -> JSONResponse:

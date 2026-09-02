@@ -10,6 +10,7 @@ from fastapi import Request
 
 from server.audit import AuditLog
 from server.registry import Registry
+from server.watchdog import Watchdog
 
 
 def get_registry(request: Request) -> Registry:
@@ -20,3 +21,8 @@ def get_registry(request: Request) -> Registry:
 def get_audit(request: Request) -> AuditLog:
     """The audit log bound to this app instance."""
     return request.app.state.audit
+
+
+def get_watchdog(request: Request) -> Watchdog:
+    """The max_duration_s watchdog bound to this app instance."""
+    return request.app.state.watchdog

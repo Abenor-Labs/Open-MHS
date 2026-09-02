@@ -30,7 +30,7 @@ from pydantic import ValidationError
 
 from server import safety
 from server.audit import AuditLog
-from server.deps import get_audit, get_registry
+from server.deps import get_audit, get_registry, get_watchdog
 from server.errors import (
     HardwareExecutionError,
     InvalidParams,
@@ -49,6 +49,7 @@ from server.models import (
     WriteParams,
 )
 from server.registry import DeviceRecord, Registry
+from server.watchdog import Watchdog
 
 log = logging.getLogger("open_mhs.rpc")
 
@@ -60,6 +61,7 @@ class Ctx:
     """Per-app services a handler may need besides the registry."""
 
     audit: AuditLog
+    watchdog: Watchdog
 
 
 Handler = Callable[[Any, Registry, Ctx], Awaitable[Any]]
@@ -185,7 +187,7 @@ async def _write(params: WriteParams, registry: Registry, ctx: Ctx) -> dict[str,
     except safety.EmergencyStopRequired as exc:
         # The limit asked for a stop, not just a refusal. Run it before answering.
         exc.data["emergency_stop"] = await _run_estop_for_violation(
-            record, _require_driver(record)
+            record, _require_driver(record), ctx.watchdog
         )
         refused(exc)
         raise
@@ -204,6 +206,7 @@ async def _write(params: WriteParams, registry: Registry, ctx: Ctx) -> dict[str,
         raise
 
     record.last_write[params.target] = (decision.value, time.monotonic())
+    ctx.watchdog.arm(record, actuator, limit, decision.value)
     # The driver's own fields go in FIRST so the middleware's decision wins on any key they
     # share. The driver was handed an already-clamped value, so its `clamped` is False and
     # would otherwise erase the fact that a clamp happened at all.
@@ -266,7 +269,9 @@ async def _condition_state(
     return state
 
 
-async def _run_estop_for_violation(record: DeviceRecord, driver: Any) -> dict[str, Any]:
+async def _run_estop_for_violation(
+    record: DeviceRecord, driver: Any, watchdog: Watchdog
+) -> dict[str, Any]:
     """Best-effort emergency stop triggered by an `on_violation: estop` limit.
 
     A failure to stop must not mask the violation that caused it, so this reports the
@@ -275,6 +280,7 @@ async def _run_estop_for_violation(record: DeviceRecord, driver: Any) -> dict[st
     try:
         stopped = await driver.emergency_stop()
         record.last_write.clear()
+        watchdog.cancel(record.device_id)
         return {"executed": True, **stopped}
     except Exception as exc:  # noqa: BLE001 - the violation is the headline, not this
         return {"executed": False, "error": f"{type(exc).__name__}: {exc}"}
@@ -299,6 +305,7 @@ async def _emergency_stop(
         )
         raise
     record.last_write.clear()
+    ctx.watchdog.cancel(params.device_id)
     ctx.audit.record(
         "estop", device_id=params.device_id, target=None, params={},
         outcome={"stopped": True, **{k: v for k, v in result.items() if k != "device_id"}},
@@ -451,8 +458,10 @@ def _json(body: Any) -> Response:
     return Response(content=json.dumps(body), media_type="application/json")
 
 
-def get_ctx(audit: AuditLog = Depends(get_audit)) -> Ctx:
-    return Ctx(audit=audit)
+def get_ctx(
+    audit: AuditLog = Depends(get_audit), watchdog: Watchdog = Depends(get_watchdog)
+) -> Ctx:
+    return Ctx(audit=audit, watchdog=watchdog)
 
 
 # `response_model` is deliberately None: a JSON-RPC response is a success object, an error
