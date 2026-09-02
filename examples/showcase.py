@@ -113,6 +113,33 @@ async def read_value(client: OpenMHSClient, device: str, target: str) -> Any:
     return (await client.rpc("mhs.read", {"device_id": device, "target": target}))["value"]
 
 
+def arrival_tolerance(inventory: dict[str, Any], device: str, target: str) -> float:
+    """How close counts as arrived, taken from the device's own declared sensor accuracy.
+
+    A mock transport lands on the exact value; a real servo does not, and the tag says so.
+    The Panda declares ±0.02 m on its pose sensors, so asserting exact equality here would
+    fail a correctly working arm and make the recording look broken. The number comes from
+    the tag rather than from this file, for the same reason every other number does.
+    """
+    for entry in inventory.get("devices", []):
+        if entry["device_id"] != device:
+            continue
+        tag = entry.get("capability_tag", {})
+        actuator = next((a for a in tag.get("actuators", []) if a["id"] == target), {})
+        feedback = actuator.get("feedback_sensor")
+        sensor = next((s for s in tag.get("sensors", []) if s["id"] == feedback), {})
+        if sensor.get("accuracy"):
+            return float(sensor["accuracy"])
+    return 1e-6
+
+
+def audit_entries(log: str) -> list[dict[str, Any]]:
+    """Every line currently in the audit log, or an empty list if there is none."""
+    if log.lower() == "off" or not Path(log).exists():
+        return []
+    return [json.loads(line) for line in Path(log).read_text(encoding="utf-8").splitlines()]
+
+
 def pick_device(inventory: dict[str, Any]) -> tuple[str, str, dict[str, Any]] | None:
     """The first device with a bounded numeric actuator, chosen from the tags.
 
@@ -146,6 +173,8 @@ def pick_gated(inventory: dict[str, Any]) -> tuple[str, str, Any] | None:
 
 async def run(client: OpenMHSClient) -> int:
     adapter.set_client(client)
+    # Where the audit log stood before this run, so beat 8 counts only what we added.
+    audit_start = len(audit_entries(os.getenv("OPEN_MHS_AUDIT_LOG", "open-mhs-audit.jsonl")))
 
     print(f"\n{BOLD}Open-MHS — what a language model can and cannot do to this "
           f"hardware{RESET}")
@@ -184,8 +213,10 @@ async def run(client: OpenMHSClient) -> int:
     text = await tool("write_hardware_state", device_id=device, parameter=target, value=legal)
     check("accepted", text.startswith("ACCEPTED"), text.splitlines()[0])
     landed = await read_value(client, device, target)
-    check(f"the hardware is at {legal}{unit}", abs(float(landed) - legal) < 1e-6,
-          f"reads {landed}")
+    tolerance = arrival_tolerance(inventory, device, target)
+    check(f"the hardware arrived within its declared ±{tolerance:g}{unit}",
+          abs(float(landed) - legal) <= tolerance,
+          f"reads {landed}, which is {abs(float(landed) - legal):g} away")
 
     # --------------------------------------------------------------- 4. the refusal ---
     beat(4, "A command outside the envelope",
@@ -229,8 +260,14 @@ async def run(client: OpenMHSClient) -> int:
     check("the plan is rejected as a whole", text.startswith("PLAN REJECTED"))
     check("the bad step is named", "#1" in text)
     unmoved = await read_value(client, device, target)
+    # Compared against the sensor's declared accuracy, not for exact equality. A real arm
+    # is still settling toward its previous setpoint while the check runs, and calling
+    # that residual millimetre a transmission would accuse the middleware of sending a
+    # value it demonstrably refused. What must hold is that the check moved nothing
+    # material and left the arm inside its envelope.
     check("nothing was transmitted by the check",
-          abs(float(unmoved) - float(after)) < 1e-6, f"moved to {unmoved}")
+          abs(float(unmoved) - float(after)) <= tolerance and lo <= float(unmoved) <= hi,
+          f"moved from {after} to {unmoved}, tolerance ±{tolerance:g}")
 
     # ------------------------------------------------------------------- 7. stop all --
     beat(7, "Something is wrong and you do not know which device",
@@ -244,20 +281,24 @@ async def run(client: OpenMHSClient) -> int:
          "Every command and every refusal is one hash-chained line. An edited or deleted "
          "line breaks the chain and `open-mhs audit verify` says which one.")
     log = os.getenv("OPEN_MHS_AUDIT_LOG", "open-mhs-audit.jsonl")
-    if log.lower() != "off" and Path(log).exists():
+    # Only the lines this run added. A stale file from an earlier session would otherwise
+    # be counted as evidence for this one, which is the opposite of what an audit is for.
+    fresh = audit_entries(log)[audit_start:]
+    if not fresh:
+        print(f"  {GREY}No new audit lines. The log is written by the SERVER, so start it "
+              f"with OPEN_MHS_AUDIT_LOG set to the same path to record this run.{RESET}")
+        print(f"  {GREY}(this script is reading {log!r}){RESET}")
+    else:
         from open_mhs.server.audit import verify
 
-        lines = [json.loads(line) for line in Path(log).read_text().splitlines()]
-        refused = sum(1 for entry in lines if entry["event"] == "write.refused")
-        accepted = sum(1 for entry in lines if entry["event"].startswith("write.accept"))
-        print(f"  {GREY}{len(lines)} entries: {accepted} accepted, {refused} refused{RESET}")
+        refused = sum(1 for e in fresh if e["event"] == "write.refused")
+        accepted = sum(1 for e in fresh if e["event"].startswith("write.accept"))
+        print(f"  {GREY}{len(fresh)} entries from this run: {accepted} accepted, "
+              f"{refused} refused{RESET}")
         report = verify(log)
         print(f"  {GREY}chain: {report}{RESET}")
         check("the audit chain is intact", report["ok"] is True)
-        check("the refusals were recorded", refused >= 2, f"only {refused}")
-    else:
-        print(f"  {GREY}OPEN_MHS_AUDIT_LOG is off; run with it set to see the trail."
-              f"{RESET}")
+        check("this run's refusals were recorded", refused >= 2, f"only {refused}")
 
     # -------------------------------------------------------------------- the close ---
     print(f"\n{BLUE}{'━' * 78}{RESET}")

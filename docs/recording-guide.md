@@ -15,13 +15,26 @@ run is therefore a recording of a working system rather than a rehearsal.
 
 ## Before you record
 
-```bash
-export OPEN_MHS_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-export OPEN_MHS_AUDIT_LOG=demo-audit.jsonl
-rm -f demo-audit.jsonl
-open-mhs serve &
-python examples/showcase.py --fast        # confirm it passes before you press record
+PowerShell, which is what you are probably in:
+
+```powershell
+$env:OPEN_MHS_AUTH_TOKEN = "robosuite-demo-token-0123456789ab"
+$env:OPEN_MHS_AUDIT_LOG  = "demo-audit.jsonl"
+Remove-Item demo-audit.jsonl -ErrorAction SilentlyContinue
+python examples/robosuite_demo/run_cell.py --viewer --pov
 ```
+
+Then, in a second window with the same two variables set:
+
+```powershell
+python examples/showcase.py --fast     # confirm it passes BEFORE you press record
+```
+
+Both variables matter. The audit log is written by the **server**, so the showcase can
+only read this run's trail if the server was started with the same path. And do not delete
+the log while the server is running: it keeps numbering from memory, so the new file starts
+mid-chain and `verify` correctly reports it as broken — which is the audit log working, not
+a bug, but it will look like one on camera.
 
 If that exits non-zero, fix the finding rather than recording around it.
 
