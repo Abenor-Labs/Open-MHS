@@ -1,0 +1,61 @@
+{
+  "mhs_version": "0.1",
+  "device_id": "pump-01",
+  "name": "Bench Peristaltic Pump",
+  "type": "pump",
+  "vendor": "Open-MHS Reference",
+  "model": "REF-PUMP-1",
+  "description": "Single-channel pump. Flow may not be held above zero for more than 30 s without a fresh command: the tray under it holds 5 ml.",
+  "sensors": [
+    {
+      "id": "flow_actual",
+      "name": "Measured flow",
+      "datatype": "number",
+      "unit": "ml_per_min",
+      "accuracy": 0.05,
+      "sample_rate_hz": 5.0
+    },
+    {
+      "id": "tray_level",
+      "name": "Catch-tray level",
+      "datatype": "number",
+      "unit": "ml",
+      "nominal_range": { "min": 0.0, "max": 5.0 },
+      "accuracy": 0.1
+    }
+  ],
+  "actuators": [
+    {
+      "id": "flow_rate",
+      "name": "Flow setpoint",
+      "datatype": "number",
+      "unit": "ml_per_min",
+      "default": 0.0,
+      "feedback_sensor": "flow_actual",
+      "settle_time_ms": 200
+    }
+  ],
+  "safety_limits": [
+    {
+      "target": "flow_rate",
+      "unit": "ml_per_min",
+      "min": 0.0,
+      "max": 10.0,
+      "max_rate": 20.0,
+      "max_duration_s": 30.0,
+      "enforcement": "software",
+      "on_violation": "reject",
+      "rationale": "10 ml/min is the tube rating. 30 s at full flow fills the 5 ml tray."
+    }
+  ],
+  "emergency_stop": {
+    "supported": true,
+    "safe_state": { "flow_rate": 0.0 },
+    "max_stop_time_ms": 200
+  },
+  "power": {
+    "voltage_v": 12.0,
+    "max_current_a": 0.5,
+    "hazard_class": "chemical"
+  }
+}

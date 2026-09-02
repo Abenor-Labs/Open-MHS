@@ -49,10 +49,11 @@ HTTP_STATUS_FOR_CODE: dict[int, int] = {
 
 def load_mock_devices(registry: Registry) -> None:
     """Bind the bundled reference drivers so a fresh checkout has something to talk to."""
+    from drivers.mock_pump import MockPump
     from drivers.mock_robotic_arm import MockRoboticArm
     from drivers.mock_temp_sensor import MockTempSensor
 
-    for driver in (MockTempSensor(), MockRoboticArm()):
+    for driver in (MockTempSensor(), MockRoboticArm(), MockPump()):
         registry.register(driver.tag, driver)
         log.info("registered mock device %s", driver.device_id)
 

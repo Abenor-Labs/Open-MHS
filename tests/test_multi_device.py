@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
+import socket
+import subprocess
+import sys
+import threading
+import time
 
 import pytest
 
 from server.errors import DEVICE_NOT_FOUND, INVALID_PARAMS, SAFETY_LIMIT_VIOLATION
-from tests.conftest import rpc_error, rpc_result
+from tests.conftest import REPO_ROOT, TEST_TOKEN, rpc_error, rpc_result
 
 # --------------------------------------------------------------------------------------
 # mhs.snapshot
@@ -193,3 +199,50 @@ async def test_emergency_stop_all_clears_rate_history(rpc, arm_device) -> None:
 async def test_new_methods_are_advertised_on_method_not_found(rpc) -> None:
     error = rpc_error(await rpc("mhs.nope"))
     assert {"mhs.snapshot", "mhs.check", "mhs.emergency_stop_all"} <= set(error["data"]["supported"])
+
+
+# --------------------------------------------------------------------------------------
+# The shipped example, end to end
+# --------------------------------------------------------------------------------------
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.mark.asyncio
+async def test_cell_agent_runs_clean_against_the_default_mocks(tmp_path, monkeypatch) -> None:
+    """The shipped multi-device example must pass against the shipped devices, no hardware."""
+    import uvicorn
+
+    from server.main import create_app
+
+    monkeypatch.setenv("OPEN_MHS_AUDIT_LOG", str(tmp_path / "audit.jsonl"))
+    port = _free_port()
+    app = create_app(auth_token=TEST_TOKEN)
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    assert server.started, "uvicorn did not come up"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "examples" / "cell_agent.py"),
+             "--url", f"http://127.0.0.1:{port}"],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+        )
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert proc.stdout.rstrip().endswith("OK"), proc.stdout
+    assert "discovered 3 device(s)" in proc.stdout
+    assert "refused: bound" in proc.stdout
+    events = [json.loads(line)["event"] for line in (tmp_path / "audit.jsonl").read_text().splitlines()]
+    assert "check" in events and "write.accepted" in events and "estop_all" in events
