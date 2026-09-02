@@ -95,7 +95,7 @@ jobs:
           python - <<'PY'
           import glob, json, sys
           from jsonschema import Draft202012Validator
-          from server.models import CapabilityTag
+          from open_mhs.server.models import CapabilityTag
 
           schema = json.load(open("schema/capability_schema.json"))
           Draft202012Validator.check_schema(schema)

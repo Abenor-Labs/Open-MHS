@@ -32,13 +32,6 @@ Done before the first upload precisely so nobody has to be broken by it later.
   11/11 legal accepted, 0 leaks. Validated by deleting both enforcement points (17/36) and
   by a test that runs it against a middleware which refuses writes and performs them anyway.
 
-### Fixed
-- **The HTTP client raised `UnboundLocalError` instead of an error a caller could act on**
-  when a request body could not be serialised — an infinity or a NaN from an agent, for
-  example. Found by the benchmark on its first run. It now fails as an invalid-params
-  error naming the offending value.
-
-### Added (continued)
 - **A standards map** (`docs/standards-map.md`): what `enforcement` and `hazard_class`
   mean against ISO 13849, ISO 12100, ISO 13850 and ISO 10218, where the audit log fits
   under EU Regulation 2023/1230, and a blunt statement of what this project does not claim
@@ -64,6 +57,14 @@ Done before the first upload precisely so nobody has to be broken by it later.
   safety layer with no HTTP, no registry, and no MCP. Tests exercise it directly, including
   that a refusal transmits nothing.
 - `py.typed`, so the annotations already in the source reach downstream type checkers.
+
+### Fixed
+- **The HTTP client raised `UnboundLocalError` instead of an error a caller could act on**
+  when a request body could not be serialised — an infinity or a NaN from an agent, for
+  example. Found by the benchmark on its first run, which is the argument for having one.
+  It now fails as an invalid-params error naming the offending value.
+- The CI step that validates every shipped capability tag still imported the pre-rename
+  module path, so it would have failed on the first push.
 
 ## 0.2.0 — 2026-09-02
 
