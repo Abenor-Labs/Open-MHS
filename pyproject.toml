@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "open-mhs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open Model Hardware Standard - a vendor-neutral driver specification for AI agents to safely operate physical hardware."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -44,6 +44,12 @@ dev = [
 [tool.setuptools]
 packages = ["server", "drivers", "mcp_adapter", "cli"]
 include-package-data = true
+
+[tool.setuptools.package-data]
+# The canonical schema lives at schema/capability_schema.json. A byte-identical copy is
+# packaged here so `pip install open-mhs` ships it; tests/test_packaging.py fails if the
+# two ever differ.
+server = ["capability_schema.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
