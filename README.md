@@ -224,15 +224,15 @@ channels and unknown devices — and records what happened to each one.
 open-mhs bench --out my-cell.md
 ```
 
-Against the three reference devices:
+| Cell | Unsafe blocked | Legal accepted | Leaks |
+|---|---|---|---|
+| Reference mocks: arm, thermometer, pump | 36/36 | 11/11 | 0 |
+| robosuite twin: Franka Panda + vision camera | 33/33 | 12/12 | 0 |
 
-| | |
-|---|---|
-| Unsafe commands blocked | 36/36 |
-| Legal commands accepted | 11/11 |
-| Refusals that still moved the hardware | 0 |
-
-The full report is [`docs/benchmarks/reference-cell.md`](docs/benchmarks/reference-cell.md).
+Full reports in [`docs/benchmarks/`](docs/benchmarks/). The robosuite run found a real
+specification gap on its first pass — wrist yaw is modular, so 0 and 90 degrees are the
+same orientation and linear verification reports a divergence for an arm that is exactly
+where it was told to be. That is now [RFC 0001](docs/rfcs/0001-modular-quantities.md).
 
 The measurement is deliberately not "did an error come back", because a refusal that still
 transmitted would answer that correctly and break a machine anyway. Every attempt is

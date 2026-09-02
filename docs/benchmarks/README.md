@@ -30,6 +30,15 @@ that clamped and transmitted anyway lands short of the setpoint and still is.
 | Cell | Devices | Unsafe blocked | Legal accepted | Leaks | Report |
 |---|---|---|---|---|---|
 | Reference mocks | arm, thermometer, pump | 36/36 | 11/11 | 0 | [reference-cell.md](reference-cell.md) |
+| robosuite twin | Franka Panda + vision camera | 33/33 | 12/12 | 0 | [robosuite-cell.md](robosuite-cell.md) |
+
+The robosuite row is the one that earned its keep. On its first run it reported five
+failures: four were the benchmark grading `tcp_z` against `reject` when its tag declares
+`clamp`, and one was a correctly refused type error on an arm still coasting from the
+previous attempt. Both were bugs in the harness, now fixed. The sixth finding was real and
+is [RFC 0001](../rfcs/0001-modular-quantities.md): wrist yaw is modular with period 90, so
+0 and 90 are the same orientation, and linear verification reports a desync for a wrist
+that is exactly where it was asked to be.
 
 ## Does the benchmark work?
 
