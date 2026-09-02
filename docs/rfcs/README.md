@@ -29,7 +29,7 @@ envelope than the tag declares while reporting success.
 
 | RFC | Title | Status | Spec version |
 |---|---|---|---|
-| — | none yet | | |
+| [0001](0001-modular-quantities.md) | `period` for modular quantities | draft | 0.3 if accepted |
 
 Candidates already named on the roadmap and worth writing up before they are built:
 sensor confidence (so the middleware can refuse to act on a degraded reading), signed

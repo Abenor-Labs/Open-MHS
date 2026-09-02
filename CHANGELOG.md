@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **RFC 0001, `period` for modular quantities.** The first RFC through the process
+  `GOVERNANCE.md` describes, and it exists because the benchmark found the gap on live
+  hardware rather than in review. A cube is symmetric every 90 degrees, so the Panda's
+  wrist yaw wraps into `[0, 90)` and 0 and 90 are the same orientation. The driver knows
+  that and correctly refuses to move; the middleware compares the reading to the command
+  linearly, sees 89.98 degrees of error, and reports a state desync for a wrist that is
+  exactly where it was asked to be. Bounds and `max_rate` are wrong on a circle for the
+  same reason.
+
+### Changed
+- **`panda_arm.mhs` no longer declares a `feedback_sensor` on `tcp_yaw`**, and says why.
+  A tag must not claim a verification the middleware cannot correctly perform. This is a
+  stopgap until RFC 0001 lands, not a fix.
+
+### Fixed
+- **The benchmark graded every device against `reject`** even when its limit declared
+  `on_violation: clamp`, so the Panda's `tcp_z` was reported as four failures for doing
+  exactly what its tag says. The corpus now reads `on_violation`, and additionally checks
+  that a clamp lands *inside* the envelope — a clamp to the wrong side of a bound is worse
+  than a refusal, because it reads as success.
+- **The benchmark called a correctly refused type error a leak.** A string aimed at a
+  numeric channel has no target position, so motion cannot be attributed to it; on an arm
+  still coasting toward its previous setpoint that was reported as the middleware
+  transmitting a value it had refused. It also now waits for a channel to come to rest
+  before taking its baseline.
+
 ## 0.3.1 — 2026-09-02
 
 First version with a green CI on every job, and the first tag the publish workflow

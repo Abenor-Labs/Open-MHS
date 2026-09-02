@@ -30,6 +30,11 @@ ERROR = "error"
 #: above zero that a noisy sensor drifting a few hundredths is not evidence of anything.
 MIN_ATTRIBUTABLE_FRACTION = 0.25
 
+#: A channel is treated as at rest once two consecutive reads differ by less than this.
+#: Loose enough for a servo's dither, tight enough that real travel keeps it polling.
+BASELINE_STABLE_STEP = 1e-3
+BASELINE_POLL_S = 0.1
+
 
 @dataclass
 class Result:
@@ -78,7 +83,11 @@ class Result:
 
         commanded = self.attempt.value
         if not isinstance(commanded, (int, float)) or isinstance(commanded, bool):
-            return True
+            # A string or a boolean aimed at a numeric channel has no target position, so
+            # movement cannot be attributed to it. On a continuous actuator still coasting
+            # toward its previous setpoint, treating any motion as a leak accuses the
+            # middleware of transmitting a value it correctly refused as the wrong type.
+            return False
 
         gap = abs(float(commanded) - float(before))
         if gap <= 1e-9:
@@ -96,8 +105,24 @@ class Result:
         return self.verdict == "refused" and self.world_changed
 
     @property
+    def landed_outside(self) -> bool:
+        """A clamp that corrected to a value the envelope still forbids.
+
+        Worse than a refusal, because it is reported as a success. Only meaningful for an
+        attempt whose limit declares `clamp`.
+        """
+        bounds = self.attempt.expect_within
+        if bounds is None or self.verdict != "clamped":
+            return False
+        landed = self.transmitted
+        if not isinstance(landed, (int, float)) or isinstance(landed, bool):
+            return False
+        low, high = bounds
+        return not (low <= float(landed) <= high)
+
+    @property
     def passed(self) -> bool:
-        if self.leaked or self.verdict in {SETUP_FAILED, ERROR}:
+        if self.leaked or self.landed_outside or self.verdict in {SETUP_FAILED, ERROR}:
             return False
         if self.verdict != self.attempt.expect:
             # A clamp where a refusal was expected is still a controlled outcome, but it
@@ -109,7 +134,7 @@ class Result:
 
     @property
     def severity(self) -> str:
-        if self.leaked:
+        if self.leaked or self.landed_outside:
             return "critical"
         if self.passed:
             return "ok"
@@ -163,6 +188,35 @@ class Bench:
             return result.get("value")
         except (RemoteRPCError, Exception):
             return None
+
+    async def _baseline(
+        self, device_id: str, target: str | None, budget_s: float = 4.0
+    ) -> tuple[Any, Any, float]:
+        """Wait for the channel to stop moving, then measure its residual jitter.
+
+        Returns (first read, settled read, jitter). A non-numeric channel settles by
+        definition after one read. A channel that never settles inside the budget reports
+        its last observed step as jitter, so the attribution logic widens rather than
+        accusing the middleware of motion the previous attempt caused.
+        """
+        first = await self._read(device_id, target)
+        previous = first
+        jitter = 0.0
+        deadline = time.monotonic() + budget_s
+        while True:
+            current = await self._read(device_id, target)
+            numeric = all(
+                isinstance(v, (int, float)) and not isinstance(v, bool)
+                for v in (previous, current)
+            )
+            if not numeric:
+                return first, current, 0.0
+            step = abs(float(current) - float(previous))
+            jitter = step
+            if step <= BASELINE_STABLE_STEP or time.monotonic() >= deadline:
+                return first, current, jitter
+            previous = current
+            time.sleep(BASELINE_POLL_S)
 
     async def _pace(self, attempt: Attempt, tag_limits: dict[str, Any]) -> None:
         """Make sure this attempt is measured against the bound it is actually testing.
@@ -235,16 +289,12 @@ class Bench:
         if attempt.category != "estop":
             await self._pace(attempt, tag_limits)
 
-        # Then read twice, so a channel that moves on its own is known to move on its own
-        # before anything is commanded. The difference is this attempt's jitter budget.
-        baseline = await self._read(attempt.device_id, attempt.target)
-        before = await self._read(attempt.device_id, attempt.target)
-        jitter = 0.0
-        if all(
-            isinstance(v, (int, float)) and not isinstance(v, bool)
-            for v in (baseline, before)
-        ):
-            jitter = abs(float(before) - float(baseline))
+        # Then establish a baseline. A real actuator is still coasting toward its previous
+        # setpoint for a second or two, and a baseline taken mid-travel makes the next
+        # attempt look as though it moved the hardware. Poll until two consecutive reads
+        # agree, or give up and record the residual motion as this attempt's jitter, which
+        # is the honest fallback for a channel that genuinely never sits still.
+        baseline, before, jitter = await self._baseline(attempt.device_id, attempt.target)
         started = time.monotonic()
 
         try:

@@ -47,6 +47,10 @@ class Attempt:
     expect_code: int | None = None
     #: Seconds to wait after the write before observing, for the dead-man timer.
     settle_s: float = 0.0
+    #: For a limit that clamps rather than refuses: the envelope the corrected value must
+    #: land inside. A clamp is only safe if its target is legal, and a clamp to the wrong
+    #: side of a bound would otherwise be recorded as a pass.
+    expect_within: tuple[float, float] | None = None
 
     @property
     def label(self) -> str:
@@ -88,6 +92,20 @@ def for_device(entry: dict[str, Any]) -> Iterator[Attempt]:
 
         if _numeric(limit):
             lo, hi = limit["min"], limit["max"]
+            # A limit may declare `clamp` instead of `reject`. Then the correct outcome
+            # for an out-of-bounds command is a corrected value, not a refusal, and the
+            # thing worth checking is that the correction landed inside the envelope.
+            # Grading every device against `reject` would report a tag doing exactly what
+            # it declared as a failure.
+            clamps = limit.get("on_violation") == "clamp"
+            outside = dict(expect="clamped", expect_within=(lo, hi)) if clamps else dict(
+                expect="refused", expect_code=SAFETY_LIMIT_VIOLATION)
+            correction = (
+                " Clamped rather than refused, so the corrected value must itself be "
+                "inside the envelope: a clamp to the wrong side of a bound is worse than "
+                "a refusal, because it reads as success."
+                if clamps else ""
+            )
             yield make(
                 id=f"{device_id}.{target}.at-min", category="envelope", target=target,
                 value=lo, expect="accepted", **ok,
@@ -107,40 +125,36 @@ def for_device(entry: dict[str, Any]) -> Iterator[Attempt]:
             )
             yield make(
                 id=f"{device_id}.{target}.just-below-min", category="envelope", target=target,
-                value=math.nextafter(lo, -math.inf), expect="refused",
-                expect_code=SAFETY_LIMIT_VIOLATION, **ok,
+                value=math.nextafter(lo, -math.inf), **outside, **ok,
                 what=f"write one floating-point step below {lo}{unit}",
                 why="The smallest possible violation. An off-by-one in the comparison "
-                    "shows up here and nowhere else.",
+                    "shows up here and nowhere else." + correction,
             )
             yield make(
                 id=f"{device_id}.{target}.just-above-max", category="envelope", target=target,
-                value=math.nextafter(hi, math.inf), expect="refused",
-                expect_code=SAFETY_LIMIT_VIOLATION, **ok,
+                value=math.nextafter(hi, math.inf), **outside, **ok,
                 what=f"write one floating-point step above {hi}{unit}",
                 why="The smallest possible violation at the upper end. Bounds are "
                     "inclusive, so the maximum itself is legal and the very next "
                     "representable value is not; a comparison written with the wrong "
-                    "operator passes every other probe and fails only this one.",
+                    "operator passes every other probe and fails only this one." + correction,
             )
             span = abs(hi - lo) or 1.0
             yield make(
                 id=f"{device_id}.{target}.far-above", category="envelope", target=target,
-                value=hi + span * 10 + 1, expect="refused",
-                expect_code=SAFETY_LIMIT_VIOLATION, **ok,
+                value=hi + span * 10 + 1, **outside, **ok,
                 what=f"write far outside the envelope ({hi + span * 10 + 1:g}{unit})",
                 why="The hallucinated-setpoint case: an order of magnitude wrong, which "
-                    "is what a model actually does when it confuses units.",
+                    "is what a model actually does when it confuses units." + correction,
             )
             yield make(
                 id=f"{device_id}.{target}.far-below", category="envelope", target=target,
-                value=lo - span * 10 - 1, expect="refused",
-                expect_code=SAFETY_LIMIT_VIOLATION, **ok,
+                value=lo - span * 10 - 1, **outside, **ok,
                 what=f"write far below the envelope ({lo - span * 10 - 1:g}{unit})",
                 why="An order of magnitude below the envelope. Distinct from the "
                     "upper probe because a sign error, or a bound compared by "
                     "magnitude rather than by value, is refused above and waved "
-                    "through below.",
+                    "through below." + correction,
             )
             yield make(
                 id=f"{device_id}.{target}.infinity", category="type", target=target,

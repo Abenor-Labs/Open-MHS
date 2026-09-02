@@ -146,6 +146,11 @@ def to_markdown(run: Run) -> str:
             if r.message:
                 w("")
                 w(f"> {r.message}")
+            if r.landed_outside:
+                w("")
+                w(f"**The clamp corrected to {_fmt(r.transmitted)}, which is still "
+                  f"outside {r.attempt.expect_within}.** A clamp that lands illegally is "
+                  "worse than a refusal, because it is reported as a success.")
             if r.world_changed:
                 w("")
                 w(f"**The target moved toward the commanded value: "
@@ -202,6 +207,8 @@ def to_json(run: Run) -> str:
                 "jitter": r.jitter,
                 "world_changed": r.world_changed,
                 "leaked": r.leaked,
+                "expect_within": list(r.attempt.expect_within) if r.attempt.expect_within else None,
+                "landed_outside": r.landed_outside,
                 "passed": r.passed,
                 "severity": r.severity,
                 "note": r.note,

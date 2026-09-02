@@ -131,8 +131,8 @@
       "unit": "deg",
       "write_mode": "absolute",
       "default": 0.0,
-      "feedback_sensor": "tcp_yaw_actual",
-      "settle_time_ms": 2000
+      "settle_time_ms": 2000,
+      "description": "Wrist yaw in degrees, wrapped to [0, 90) because a cube is indistinguishable under 90-degree rotation. NO feedback_sensor is declared, deliberately: yaw is a MODULAR quantity, 0 and 90 are the same orientation, and the middleware compares a reading to a command linearly. Declaring tcp_yaw_actual here would produce a state desync for a wrist that is exactly where it was asked to be. Read tcp_yaw_actual directly and compare it modulo 90. See docs/rfcs/0001-modular-quantities.md."
     }
   ],
   "safety_limits": [
@@ -188,7 +188,7 @@
       "max": 90.0,
       "enforcement": "software",
       "on_violation": "reject",
-      "rationale": "A cube is indistinguishable under 90 degree rotation, so every useful alignment lives in [0, 90). Bounding it here stops an agent winding the wrist through multiple turns to reach an angle it already had."
+      "rationale": "A cube is indistinguishable under 90 degree rotation, so every useful alignment lives in [0, 90). Bounding it here stops an agent winding the wrist through multiple turns to reach an angle it already had. NOTE: this is an interval on a circle, and the middleware enforces it linearly; RFC 0001 proposes the `period` field that would let it do so correctly."
     }
   ],
   "emergency_stop": {
