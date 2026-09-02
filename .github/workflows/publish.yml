@@ -62,7 +62,7 @@ jobs:
             /tmp/clean/bin/python -c "import open_mhs; open_mhs.create_app(); print('ok', open_mhs.__version__)"
           /tmp/clean/bin/open-mhs describe "$GITHUB_WORKSPACE/examples/robotic_arm.mhs" | head -3
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
