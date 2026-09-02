@@ -19,6 +19,7 @@ from typing import AsyncIterator, Sequence
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from server.audit import AuditLog
 from server.auth import AuthPolicy, load_tokens, require_auth
 from server.errors import (
     DEVICE_NOT_FOUND,
@@ -60,6 +61,7 @@ def create_app(
     *,
     load_mocks: bool | None = None,
     auth_token: str | Sequence[str] | None = None,
+    audit_log: AuditLog | None = None,
 ) -> FastAPI:
     """Build an app around a registry.
 
@@ -71,6 +73,9 @@ def create_app(
             way to disable authentication: with neither source configured this raises
             `AuthNotConfigured` and the app never exists. A server that can move a robotic
             arm must not come up unauthenticated because a variable was forgotten.
+        audit_log: where commands and refusals are recorded. Defaults to
+            `$OPEN_MHS_AUDIT_LOG`, then `open-mhs-audit.jsonl` in the working directory.
+            Tests pass a temporary path.
 
     Raises:
         AuthNotConfigured: no token configured, or a token too short to be a secret.
@@ -101,6 +106,7 @@ def create_app(
     )
     app.state.registry = registry
     app.state.auth = AuthPolicy(tokens=tokens)
+    app.state.audit = audit_log if audit_log is not None else AuditLog.from_env()
 
     @app.exception_handler(MHSError)
     async def _mhs_error_handler(request: Request, exc: MHSError) -> JSONResponse:

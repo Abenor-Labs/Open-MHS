@@ -1,12 +1,11 @@
 """JSON-RPC 2.0 dispatcher — the only surface that mutates hardware.
 
-`POST /rpc` is canonical; `POST /execute` is an alias onto the same dispatcher. Four
-methods and no others:
+`POST /rpc` is canonical; `POST /execute` is an alias onto the same dispatcher. Methods:
 
-    mhs.discover          read-only   list devices and their capability tags
-    mhs.read              read-only   read one sensor or actuator state
-    mhs.write             MUTATING    command one actuator, inside its limits
-    mhs.emergency_stop    MUTATING    drive a device to its declared safe state
+    mhs.discover            read-only   list devices and their capability tags
+    mhs.read                read-only   read one sensor or actuator state
+    mhs.write               MUTATING    command one actuator, inside its limits
+    mhs.emergency_stop      MUTATING    drive a device to its declared safe state
 
 Bare `read` / `write` are accepted as aliases.
 
@@ -14,6 +13,8 @@ This module is enforcement point 2 of 2: **runtime**. Every `mhs.write` is evalu
 against the registry's copy of the device's `safety_limits` *before* the driver is
 touched. The driver then evaluates the same limits again before it touches its transport.
 Two independent checks, one implementation in `server.safety`.
+
+Every mutating call, accepted or refused, is written to the audit log.
 """
 
 from __future__ import annotations
@@ -21,26 +22,30 @@ from __future__ import annotations
 import json
 import logging
 import time
+from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import ValidationError
 
 from server import safety
-from server.deps import get_registry
+from server.audit import AuditLog
+from server.deps import get_audit, get_registry
 from server.errors import (
+    HardwareExecutionError,
     InvalidParams,
     InvalidRequest,
     MethodNotFound,
     MHSError,
     ParseError,
-    HardwareExecutionError,
 )
 from server.models import (
+    Actuator,
     DiscoverParams,
     EmergencyStopParams,
     JsonRpcRequest,
     ReadParams,
+    SafetyLimit,
     WriteParams,
 )
 from server.registry import DeviceRecord, Registry
@@ -49,7 +54,15 @@ log = logging.getLogger("open_mhs.rpc")
 
 router = APIRouter(tags=["execution"])
 
-Handler = Callable[[Any, Registry], Awaitable[Any]]
+
+@dataclass
+class Ctx:
+    """Per-app services a handler may need besides the registry."""
+
+    audit: AuditLog
+
+
+Handler = Callable[[Any, Registry, Ctx], Awaitable[Any]]
 
 
 # --------------------------------------------------------------------------------------
@@ -57,7 +70,7 @@ Handler = Callable[[Any, Registry], Awaitable[Any]]
 # --------------------------------------------------------------------------------------
 
 
-async def _discover(params: DiscoverParams, registry: Registry) -> dict[str, Any]:
+async def _discover(params: DiscoverParams, registry: Registry, ctx: Ctx) -> dict[str, Any]:
     records = registry.list(device_type=params.type, online_only=params.online_only)
     return {
         "count": len(records),
@@ -65,7 +78,7 @@ async def _discover(params: DiscoverParams, registry: Registry) -> dict[str, Any
     }
 
 
-async def _read(params: ReadParams, registry: Registry) -> dict[str, Any]:
+async def _read(params: ReadParams, registry: Registry, ctx: Ctx) -> dict[str, Any]:
     record = registry.get(params.device_id)
     tag = record.tag
     channel = tag.sensor_map.get(params.target) or tag.actuator_map.get(params.target)
@@ -90,8 +103,15 @@ async def _read(params: ReadParams, registry: Registry) -> dict[str, Any]:
     }
 
 
-async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
-    record = registry.get(params.device_id)
+async def _evaluate(
+    record: DeviceRecord, params: WriteParams
+) -> tuple[Actuator, SafetyLimit, Any, safety.SafetyDecision]:
+    """Everything a write needs checked before anything is transmitted.
+
+    Returns (actuator, limit, driver, decision). Raises exactly the errors `mhs.write`
+    raises, including `EmergencyStopRequired` — but does NOT run the stop. The caller
+    decides whether it is executing (run it) or only checking (report it).
+    """
     tag = record.tag
 
     if params.target in tag.sensor_map:
@@ -138,26 +158,50 @@ async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
     # did not must not unlock the tighter payload bound.
     state = await _condition_state(driver, limit, params.device_id)
 
-    try:
-        decision = safety.check_write(
-            actuator,
-            limit,
-            params.value,
-            current=current,
-            elapsed_s=elapsed_s,
-            device_id=params.device_id,
-            state=state,
+    decision = safety.check_write(
+        actuator,
+        limit,
+        params.value,
+        current=current,
+        elapsed_s=elapsed_s,
+        device_id=params.device_id,
+        state=state,
+    )
+    return actuator, limit, driver, decision
+
+
+async def _write(params: WriteParams, registry: Registry, ctx: Ctx) -> dict[str, Any]:
+    record = registry.get(params.device_id)
+    logged = {"value": params.value, "confirm": params.confirm}
+
+    def refused(exc: MHSError) -> None:
+        ctx.audit.record(
+            "write.refused", device_id=params.device_id, target=params.target,
+            params=logged, outcome={"transmitted": None, "error": exc.to_rpc()},
         )
+
+    try:
+        actuator, limit, driver, decision = await _evaluate(record, params)
     except safety.EmergencyStopRequired as exc:
         # The limit asked for a stop, not just a refusal. Run it before answering.
-        exc.data["emergency_stop"] = await _run_estop_for_violation(record, driver)
+        exc.data["emergency_stop"] = await _run_estop_for_violation(
+            record, _require_driver(record)
+        )
+        refused(exc)
+        raise
+    except MHSError as exc:
+        refused(exc)
         raise
 
-    result = await _guard_hardware(
-        driver.write(params.target, decision.value, confirmed=params.confirm),
-        params.device_id,
-        params.target,
-    )
+    try:
+        result = await _guard_hardware(
+            driver.write(params.target, decision.value, confirmed=params.confirm),
+            params.device_id,
+            params.target,
+        )
+    except MHSError as exc:
+        refused(exc)
+        raise
 
     record.last_write[params.target] = (decision.value, time.monotonic())
     # The driver's own fields go in FIRST so the middleware's decision wins on any key they
@@ -185,6 +229,16 @@ async def _write(params: WriteParams, registry: Registry) -> dict[str, Any]:
             f"CLAMPED: {params.target} was commanded to {decision.original} but "
             f"{decision.value} was transmitted. {decision.reason}"
         )
+    ctx.audit.record(
+        "write.clamped" if decision.clamped else "write.accepted",
+        device_id=params.device_id, target=params.target, params=logged,
+        outcome={
+            "transmitted": decision.value,
+            "requested": decision.original,
+            "clamped": decision.clamped,
+            "verified": bool(response.get("verified")),
+        },
+    )
     return response
 
 
@@ -226,7 +280,9 @@ async def _run_estop_for_violation(record: DeviceRecord, driver: Any) -> dict[st
         return {"executed": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
-async def _emergency_stop(params: EmergencyStopParams, registry: Registry) -> dict[str, Any]:
+async def _emergency_stop(
+    params: EmergencyStopParams, registry: Registry, ctx: Ctx
+) -> dict[str, Any]:
     """Drive the device to the safe state its own tag declares.
 
     The only mutating path that does not consult `safety_limits`: the safe state is
@@ -234,8 +290,19 @@ async def _emergency_stop(params: EmergencyStopParams, registry: Registry) -> di
     """
     record = registry.get(params.device_id)
     driver = _require_driver(record)
-    result = await _guard_hardware(driver.emergency_stop(), params.device_id, None)
+    try:
+        result = await _guard_hardware(driver.emergency_stop(), params.device_id, None)
+    except MHSError as exc:
+        ctx.audit.record(
+            "estop", device_id=params.device_id, target=None, params={},
+            outcome={"stopped": False, "error": exc.to_rpc()},
+        )
+        raise
     record.last_write.clear()
+    ctx.audit.record(
+        "estop", device_id=params.device_id, target=None, params={},
+        outcome={"stopped": True, **{k: v for k, v in result.items() if k != "device_id"}},
+    )
     return {"device_id": params.device_id, **result}
 
 
@@ -301,7 +368,7 @@ def _error_response(request_id: Any, error: MHSError) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": request_id, "error": error.to_rpc()}
 
 
-async def _dispatch_one(payload: Any, registry: Registry) -> dict[str, Any] | None:
+async def _dispatch_one(payload: Any, registry: Registry, ctx: Ctx) -> dict[str, Any] | None:
     """Execute one JSON-RPC request object. Returns None for a notification."""
     if not isinstance(payload, dict):
         return _error_response(None, InvalidRequest("A JSON-RPC request must be an object"))
@@ -339,7 +406,7 @@ async def _dispatch_one(payload: Any, registry: Registry) -> dict[str, Any] | No
                 {"errors": exc.errors(include_url=False, include_input=False)},
             ) from exc
 
-        result = await handler(params, registry)
+        result = await handler(params, registry, ctx)
     except MHSError as exc:
         return None if rpc.is_notification else _error_response(response_id, exc)
     except Exception as exc:  # noqa: BLE001 - never leak a traceback to an agent
@@ -358,7 +425,7 @@ async def _dispatch_one(payload: Any, registry: Registry) -> dict[str, Any] | No
     return {"jsonrpc": "2.0", "id": response_id, "result": result}
 
 
-async def _handle(request: Request, registry: Registry) -> Response:
+async def _handle(request: Request, registry: Registry, ctx: Ctx) -> Response:
     raw = await request.body()
     try:
         payload = json.loads(raw)
@@ -368,13 +435,13 @@ async def _handle(request: Request, registry: Registry) -> Response:
     if isinstance(payload, list):
         if not payload:
             return _json(_error_response(None, InvalidRequest("Batch must not be empty")))
-        responses = [await _dispatch_one(item, registry) for item in payload]
+        responses = [await _dispatch_one(item, registry, ctx) for item in payload]
         kept = [r for r in responses if r is not None]
         if not kept:  # an all-notification batch gets no response body at all
             return Response(status_code=204)
         return _json(kept)
 
-    single = await _dispatch_one(payload, registry)
+    single = await _dispatch_one(payload, registry, ctx)
     if single is None:
         return Response(status_code=204)
     return _json(single)
@@ -384,20 +451,32 @@ def _json(body: Any) -> Response:
     return Response(content=json.dumps(body), media_type="application/json")
 
 
+def get_ctx(audit: AuditLog = Depends(get_audit)) -> Ctx:
+    return Ctx(audit=audit)
+
+
 # `response_model` is deliberately None: a JSON-RPC response is a success object, an error
 # object, a batch array, or an empty 204, and no single Pydantic model covers all four
 # without lying in the OpenAPI document. Request bodies are still strictly modelled.
 @router.post("/rpc", response_model=None, summary="JSON-RPC 2.0 endpoint (canonical)")
-async def rpc(request: Request, registry: Registry = Depends(get_registry)) -> Response:
+async def rpc(
+    request: Request,
+    registry: Registry = Depends(get_registry),
+    ctx: Ctx = Depends(get_ctx),
+) -> Response:
     """Dispatch one JSON-RPC request or a batch.
 
     Supports notifications (a request with no `id` member): they execute and return no
     response, per the JSON-RPC 2.0 specification.
     """
-    return await _handle(request, registry)
+    return await _handle(request, registry, ctx)
 
 
 @router.post("/execute", response_model=None, summary="JSON-RPC 2.0 endpoint (alias of /rpc)")
-async def execute(request: Request, registry: Registry = Depends(get_registry)) -> Response:
+async def execute(
+    request: Request,
+    registry: Registry = Depends(get_registry),
+    ctx: Ctx = Depends(get_ctx),
+) -> Response:
     """RESTful alias for `/rpc`. Identical semantics, same dispatcher."""
-    return await _handle(request, registry)
+    return await _handle(request, registry, ctx)

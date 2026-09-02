@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from server.deps import get_registry
+from server.audit import AuditLog
+from server.deps import get_audit, get_registry
 from server.models import (
     CapabilityTag,
     DeregisterResponse,
@@ -27,6 +28,7 @@ router = APIRouter(tags=["discovery"])
 async def register(
     tag: CapabilityTag,
     registry: Registry = Depends(get_registry),
+    audit: AuditLog = Depends(get_audit),
 ) -> RegisterResponse:
     """Announce a device.
 
@@ -36,6 +38,15 @@ async def register(
     """
     replaced = tag.device_id in registry
     record = registry.register(tag)
+    audit.record(
+        "register", device_id=record.device_id, target=None,
+        params={"replaced": replaced},
+        outcome={
+            "mhs_version": tag.mhs_version,
+            "actuators": sorted(tag.actuator_map),
+            "sensors": sorted(tag.sensor_map),
+        },
+    )
     return RegisterResponse(
         registered=True,
         device_id=record.device_id,
@@ -87,7 +98,9 @@ async def heartbeat(
 async def deregister(
     device_id: str,
     registry: Registry = Depends(get_registry),
+    audit: AuditLog = Depends(get_audit),
 ) -> DeregisterResponse:
     """Remove a device. Its driver is not stopped; unplugging is the driver's business."""
     record = registry.deregister(device_id)
+    audit.record("deregister", device_id=record.device_id, target=None, params={}, outcome={})
     return DeregisterResponse(deregistered=True, device_id=record.device_id)

@@ -37,6 +37,12 @@ EXAMPLES = REPO_ROOT / "examples"
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _audit_log_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test writes an audit file into the working tree unless it asks for one."""
+    monkeypatch.setenv("OPEN_MHS_AUDIT_LOG", "off")
+
+
 def load_tag(path: Path) -> dict[str, Any]:
     """Load a real tag from disk. Never inline a capability tag in a test."""
     return json.loads(path.read_text(encoding="utf-8"))
