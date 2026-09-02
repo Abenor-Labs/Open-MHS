@@ -259,7 +259,10 @@ async def test_a_stuck_axis_over_serial_is_a_state_desync() -> None:
     """Firmware acknowledged the move, the axis did not arrive. Not a success."""
     from open_mhs.server.errors import StateDesync
 
-    arm = make_arm(["ok", "X:0.000 Y:0.000 Z:0.00 E:0.00"])
+    # Verification polls the position until settle_time_ms runs out, so a stuck axis has
+    # to keep answering M114 with the same stuck position. One reply was enough when
+    # verification read exactly once; a real Marlin answers every query.
+    arm = make_arm(["ok"] + ["X:0.000 Y:0.000 Z:0.00 E:0.00"] * 12)
     with pytest.raises(StateDesync) as exc:
         await arm.write("joint_1", 45.0)
     assert exc.value.data["commanded"] == 45.0
