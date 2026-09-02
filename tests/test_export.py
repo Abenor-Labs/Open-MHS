@@ -208,6 +208,31 @@ def test_the_exported_controller_example_runs_clean(live_server: str, tmp_path: 
     assert "nothing transmitted" in proc.stdout
 
 
+def test_the_showcase_passes_against_the_reference_cell(live_server: str) -> None:
+    """The recording script must not be able to produce a misleading video.
+
+    It asserts every claim it narrates, so if it exits zero the sequence it showed is the
+    sequence that happened. Running it here means a change that breaks a beat is caught
+    before somebody films it.
+    """
+    import os
+    import subprocess
+    import sys as _sys
+
+    from tests.conftest import REPO_ROOT
+
+    proc = subprocess.run(
+        [_sys.executable, str(REPO_ROOT / "examples" / "showcase.py"),
+         "--url", live_server, "--fast"],
+        capture_output=True, text=True, timeout=120,
+        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "Every claim in this recording was checked" in proc.stdout
+    assert "REJECTED - safety limit violation" in proc.stdout
+    assert "the hardware did not move" in proc.stdout
+
+
 @pytest.mark.asyncio
 async def test_cli_export_writes_a_module(tmp_path: Path, capsys) -> None:
     out = tmp_path / "pump.py"
