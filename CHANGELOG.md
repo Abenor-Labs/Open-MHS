@@ -17,6 +17,14 @@ Done before the first upload precisely so nobody has to be broken by it later.
   which is the policy working as intended rather than a mistake.
 
 ### Added
+- **Governance, written down.** `GOVERNANCE.md` states the actual position — one
+  maintainer, bus factor of one, no committee — and defines the one process that makes
+  this a standard rather than one person's library: a change to the Capability Tag schema
+  goes through an RFC in `docs/rfcs/`, and rejected RFCs stay in the tree so the next
+  person can see what was already considered. Also defines what "Open-MHS compliant"
+  means: passes the published conformance suite, which nothing can claim until that suite
+  ships. Adds `CODEOWNERS`, Contributor Covenant 2.1, and an explicit contribution
+  licensing statement.
 - **A declared public API.** `import open_mhs` exposes the specification types, the driver
   base class and transports, the safety evaluator, the middleware factory, the audit log,
   and the error classes. `tests/test_public_api.py` pins the exact set: adding a name is a

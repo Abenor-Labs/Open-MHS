@@ -12,7 +12,7 @@ the repo's existing conventions exactly.
 
 - Adding a new endpoint to the middleware server.
 - Adding a JSON-RPC method to `/execute`.
-- Splitting a growing `server/main.py` into routers.
+- Splitting a growing `open_mhs/server/main.py` into routers.
 
 ## Read before writing
 

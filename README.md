@@ -6,14 +6,14 @@
 
 [![Tests](https://github.com/Abenor-Labs/Open-MHS/actions/workflows/test.yml/badge.svg)](https://github.com/Abenor-Labs/Open-MHS/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-8A63D2.svg)](https://modelcontextprotocol.io)
-[![Tests passing](https://img.shields.io/badge/tests-207%20passing-brightgreen.svg)](#testing)
+[![Tests passing](https://img.shields.io/badge/tests-331%20passing-brightgreen.svg)](#testing)
 
 *An agent asks for 300°. The arm is bounded to 90°. Nothing moves.*
 
-**207 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
-serial hardware driver · CI across Python 3.11/3.12 on Linux and Windows**
+**331 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
+serial hardware driver · CI across Python 3.10/3.11/3.12 on Linux and Windows**
 
 </div>
 
@@ -156,7 +156,7 @@ So they are tested that way:
          ▼                      │                      │
 ┌──────────────────┐            │                      │
 │   MCP Adapter    │  7 tools   │                      │
-│   mcp_adapter/   │            │                      │
+│ open_mhs/mcp_... │            │                      │
 └────────┬─────────┘            │                      │
          │  JSON-RPC 2.0 over HTTP  ·  Bearer token    │
          ▼                      ▼                      ▼
@@ -444,7 +444,7 @@ produce a misleading recording.
 
 **Quality**
 
-- [x] 264 tests, no hardware required, including the multi-device example run end to end
+- [x] 331 tests, no hardware required, including the multi-device and controller examples run end to end
 - [x] CI on Python 3.10, 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
 - [x] Driver compliance smoke test — five checks in 0.1 s against a real driver and a real
       tag, covering reads, in-bounds writes, refusals, clamping and conditional bounds
@@ -559,13 +559,15 @@ a bound was evaluated against described reality. Every guarantee sits downstream
 ## Reference
 
 ```text
-schema/       capability_schema.json — the specification
-server/       FastAPI middleware: registry, JSON-RPC dispatcher, safety, auth
-drivers/      driver contract, in-memory transport, real serial (G-code) transport
-mcp_adapter/  MCP server wrapping the HTTP surface
-examples/     worked capability tags and the PyBullet demo
-docs/         specification documentation
-tests/        207 tests, no hardware required
+schema/                  capability_schema.json — the specification
+open_mhs/                the package; `import open_mhs` for the public API
+  server/                FastAPI middleware: registry, JSON-RPC, safety, audit, watchdog
+  drivers/               driver contract, in-memory and real serial (G-code) transports
+  mcp_adapter/           MCP server wrapping the HTTP surface
+  cli/                   the open-mhs command, plus the export and doc generators
+examples/                worked capability tags, the sim demos, the cell and controller agents
+docs/                    specification documentation, audit log format, RFCs
+tests/                   331 tests, no hardware required
 ```
 
 **Error codes**
@@ -592,7 +594,7 @@ Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 ## Testing
 
 ```bash
-pytest                                    # 264 tests, no hardware required
+pytest                                    # 331 tests, no hardware required
 pytest tests/test_driver_compliance.py    # 5-check smoke test, 0.1 s
 python tests/test_crypto_bridge.py        # signing flow, narrated
 ruff check .
@@ -607,7 +609,7 @@ test → real /rpc route → real driver class → FAKE transport
                                              ^^^^ only this is fake
 ```
 
-What the 264 tests actually cover:
+What the 331 tests actually cover:
 
 | Area | What is proved |
 | --- | --- |
@@ -632,6 +634,13 @@ during development: break the check, watch the tests fail, restore it.
 
 ## Contributing
 
+Who decides what, and how a change to the schema gets made, is written down in
+[`GOVERNANCE.md`](GOVERNANCE.md). The short version: there is one maintainer, that is
+stated plainly rather than dressed up as a committee, and a change to the **Capability Tag
+specification** goes through an RFC in [`docs/rfcs/`](docs/rfcs/) rather than a pull
+request. Implementation changes are ordinary pull requests. Recruiting a second person with
+merge rights is an open task; if you have shipped a couple of good changes, ask.
+
 **The most valuable thing you can add is a driver.**
 
 Open-MHS ships a real serial/G-code transport and a mock one. Every device class beyond
@@ -641,7 +650,7 @@ that is an opportunity:
 `GPIO / I²C sensors` · `3D printers` · `syringe pumps` · `spectrometers`
 
 Writing one means implementing `acquire` and `transmit` from
-[`drivers/transport.py`](drivers/transport.py) and letting `BaseDevice` handle the safety
+[`open_mhs/drivers/transport.py`](open_mhs/drivers/transport.py) and letting `BaseDevice` handle the safety
 path. Keep protocol knowledge in the device's `encode`/`decode` and the link dumb, and your
 driver stays fully testable against a fake port with no hardware attached.
 

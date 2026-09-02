@@ -1,8 +1,12 @@
 # Contributing to Open-MHS
 
 Thanks for looking. This project guards machinery, so the bar for changes is a little
-different from a typical library — but the process is ordinary and the maintainers are
-friendly.
+different from a typical library — but the process is ordinary.
+
+Two things worth knowing before you start:
+[`GOVERNANCE.md`](GOVERNANCE.md) says who decides what, and a change to the
+**Capability Tag schema** is an RFC rather than a pull request — see
+[`docs/rfcs/`](docs/rfcs/).
 
 ## Getting set up
 
@@ -21,7 +25,7 @@ pytest
 ruff check .
 ```
 
-Both must pass before a pull request is reviewed. CI runs them on Python 3.11 and 3.12
+Both must pass before a pull request is reviewed. CI runs them on Python 3.10, 3.11 and 3.12
 across Ubuntu and Windows.
 
 ## The most useful thing you can contribute: a driver
@@ -34,7 +38,7 @@ Open-MHS ships a real serial/G-code transport and an in-memory one. Everything e
 A driver is two pieces:
 
 1. **A transport** — implement `acquire` and `transmit` from
-   [`drivers/transport.py`](drivers/transport.py). It moves bytes and knows nothing about
+   [`open_mhs/drivers/transport.py`](open_mhs/drivers/transport.py). It moves bytes and knows nothing about
    capability tags, limits or units.
 2. **A device** — subclass `BaseDevice` and implement `encode` / `decode`. This is where
    protocol knowledge lives.
@@ -42,7 +46,7 @@ A driver is two pieces:
 Do **not** override `BaseDevice.write`. The safety path is not a subclass's business, and a
 driver that reimplements it will be asked to remove that in review.
 
-[`drivers/serial_robotic_arm.py`](drivers/serial_robotic_arm.py) is the reference example:
+[`open_mhs/drivers/serial_robotic_arm.py`](open_mhs/drivers/serial_robotic_arm.py) is the reference example:
 capability-tag values in, G-code out, over a real UART.
 
 ### Every driver ships with tests
@@ -93,8 +97,8 @@ These exist because the failure mode is physical.
 - **Per-device credentials**, so a compromised sensor cannot command an arm.
 - **Real-hardware validation reports** — run a driver against actual metal and tell us what
   broke. This is genuinely valuable and nobody has done it yet.
-- **Enforce `max_duration_s`**, which the schema defines and the middleware currently
-  parses but ignores.
+- **A second reviewer.** The bus factor is one. If you have shipped a couple of good
+  changes and want merge rights, ask.
 
 ## Pull requests
 
@@ -110,10 +114,13 @@ Do not open a public issue. See [SECURITY.md](SECURITY.md).
 
 ## Code of conduct
 
-Be decent to each other. Assume good faith, keep criticism about the code, and remember
-that someone reading this may be about to point it at a machine that can hurt them.
+[Contributor Covenant 2.1](CODE_OF_CONDUCT.md). In short: assume good faith, keep
+criticism about the code, and remember that someone reading this may be about to point it
+at a machine that can hurt them.
 
 ## License
 
-By contributing you agree that your contributions are licensed under
-[Apache-2.0](LICENSE), the same terms as the project.
+By opening a pull request you certify that you wrote the contribution or otherwise have
+the right to submit it, and that it is offered under [Apache-2.0](LICENSE), the same terms
+as the project. Sign off your commits with `git commit -s` if you want that recorded
+explicitly.

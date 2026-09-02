@@ -1,0 +1,13 @@
+# Every change needs the maintainer's review. Recruiting a second reviewer is an open
+# task, not a formality — see GOVERNANCE.md. Until it is done the bus factor is one.
+*                           @warpirate
+
+# The specification and the invariants that protect it. Changes here go through an RFC
+# (docs/rfcs/), never a direct edit.
+/schema/                    @warpirate
+/open_mhs/server/models.py  @warpirate
+/open_mhs/server/safety.py  @warpirate
+/open_mhs/drivers/base.py   @warpirate
+/docs/rfcs/                 @warpirate
+/GOVERNANCE.md              @warpirate
+/CLAUDE.md                  @warpirate

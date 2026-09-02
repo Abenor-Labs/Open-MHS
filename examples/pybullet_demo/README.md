@@ -74,7 +74,7 @@ the receiving geometry. The floor is deliberately only 5.2 m across for this rea
 Running **with** the GUI window renders through OpenGL on the GPU instead and is far
 faster; the offscreen numbers above are the worst case.
 
-Nothing else in the repo depends on `pybullet`, and this directory imports from `server/`
+Nothing else in the repo depends on `pybullet`, and this directory imports from `open_mhs/`
 but never modifies it.
 
 ## The refusal is real
