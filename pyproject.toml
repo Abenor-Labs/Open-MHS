@@ -32,6 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
+open-mhs = "cli.main:main"
 open-mhs-mcp = "mcp_adapter.server:main"
 
 [project.optional-dependencies]
