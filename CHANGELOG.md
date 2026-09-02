@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **The code-file gate.** `open-mhs export <tag>.mhs` generates a standalone, typed Python
+  module: one `read_*`/`write_*` per channel, `snapshot`, `check`, `emergency_stop`, plus
+  the device's bounds in `BOUNDS` and in every docstring. It enforces nothing locally —
+  every write goes to the middleware and is refused there — so a controller written
+  against it runs with no model in the loop and is still safe.
+- **Reference documents.** `open-mhs doc <tag>.mhs` writes the per-device Markdown an
+  agent reads instead of a vendor manual: channels, bounds, why each bound exists,
+  conditional envelopes, verification, error codes, and the MCP client snippet. Generated
+  entirely from the tag; a test fails if any number in it is not declared there.
+- **`examples/exported_controller.py`** — the handover pattern end to end: export, import,
+  pace to `max_rate`, sweep the envelope, fit a gain, close the loop with no model, then
+  probe past the bound and get refused. Run in CI.
+
 ## 0.2.0 — 2026-09-02
 
 Capability Tag spec: **0.2** (introduced in the previous commit series; `conditions`).

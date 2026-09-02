@@ -185,6 +185,29 @@ def test_a_controller_with_no_model_can_plan_inside_bounds(arm) -> None:
 # --------------------------------------------------------------------------------------
 
 
+def test_the_exported_controller_example_runs_clean(live_server: str, tmp_path: Path) -> None:
+    """The shipped code-file example: export, import, sweep, fit, close the loop, probe.
+
+    No model is in the loop after the export. The middleware still refuses the probe.
+    """
+    import os
+    import subprocess
+    import sys as _sys
+
+    from tests.conftest import REPO_ROOT
+
+    proc = subprocess.run(
+        [_sys.executable, str(REPO_ROOT / "examples" / "exported_controller.py"),
+         "--url", live_server],
+        capture_output=True, text=True, timeout=120,
+        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert proc.stdout.rstrip().endswith("OK"), proc.stdout
+    assert "refused: [-32001]" in proc.stdout
+    assert "nothing transmitted" in proc.stdout
+
+
 @pytest.mark.asyncio
 async def test_cli_export_writes_a_module(tmp_path: Path, capsys) -> None:
     out = tmp_path / "pump.py"

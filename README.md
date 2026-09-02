@@ -190,9 +190,34 @@ an emergency stop. One mutating surface means one place to audit.
 
 ### Three gates, one enforcer
 
-An agent reaches hardware through MCP, through the `open-mhs` CLI, or through plain
-JSON-RPC from code it wrote itself. All three land on the same `/rpc` dispatcher and the
-same two enforcement points. There is no gate with a looser envelope.
+An agent reaches hardware three ways, and all of them land on the same `/rpc` dispatcher
+and the same two enforcement points. There is no gate with a looser envelope.
+
+| Gate | Command | Who uses it |
+| --- | --- | --- |
+| **MCP** | `open-mhs-mcp` | Claude Desktop, Claude Code, any MCP client |
+| **Shell** | `open-mhs read/write/snapshot/check/estop` | a person at a terminal, or an agent running in one |
+| **Code** | `open-mhs export <tag>.mhs --out arm01.py` | a controller that runs with no model in the loop |
+
+The code gate is the handover point that matters. A model is useful while the search space
+is unknown and a liability once it is not: let the agent explore, then export a module and
+let plain Python run the result forever. The generated module enforces nothing — it carries
+the bounds in `BOUNDS` and in its docstrings so a controller can *plan* inside them, while
+every write still goes to the middleware and is refused exactly as an MCP call would be.
+
+```bash
+open-mhs export examples/bench_pump.mhs --out pump_01.py
+open-mhs doc    examples/bench_pump.mhs --out DEVICE.md   # the reference a model reads
+python examples/exported_controller.py                    # sweep, fit, close the loop, probe
+```
+
+`examples/exported_controller.py` does that end to end against the reference pump: it reads
+`max_rate` out of `BOUNDS` and paces itself (a value inside the range is still refused if it
+arrives too fast), sweeps the envelope, fits a gain, hits a target to 0.0000, and has its
+out-of-bound probe refused with nothing transmitted. CI runs it.
+
+`open-mhs doc` writes the per-device Markdown an agent reads instead of a vendor PDF. Every
+number in it comes from the tag; a test fails if one does not.
 
 ### Operating a cell, not a device
 
@@ -375,8 +400,13 @@ produce a misleading recording.
 **Integration**
 
 - [x] MCP adapter — seven tools, refusals rendered as text a model can act on
-- [x] `open-mhs` CLI — discover, read, write, snapshot, check, estop, describe, audit
-      verify, serve; identical refusal text to the MCP tools
+- [x] `open-mhs` CLI — discover, read, write, snapshot, check, estop, describe, export,
+      doc, audit verify, serve; identical refusal text to the MCP tools
+- [x] **Code-file gate** — `open-mhs export` generates a typed, dependency-free Python
+      module from a tag, so a controller can run with no model in the loop and still be
+      refused by the middleware on every write
+- [x] **Reference documents** — `open-mhs doc` generates the per-device Markdown an agent
+      reads instead of a manual, entirely from the tag
 - [x] Three reference devices loaded by default: arm, temperature sensor, pump
 - [x] Real serial transport driving Marlin/GRBL-style G-code
 - [x] In-memory transport with fault injection (dead link, stuck axis)
