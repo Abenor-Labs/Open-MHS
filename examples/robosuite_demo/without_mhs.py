@@ -85,7 +85,8 @@ def main() -> int:
     # The claim this file makes must be true of the physics, or the script says so.
     lowest = results.get("lowest_z")
     if lowest is None:
-        print("  no measurement taken"); return 2
+        print("  no measurement taken")
+        return 2
     if lowest >= FLOOR_WITH_MHS:
         print(f"  UNEXPECTED: tool never went below the middleware's floor ({lowest})")
         return 1
