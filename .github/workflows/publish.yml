@@ -1,0 +1,123 @@
+name: Publish
+
+# Builds and uploads to PyPI when a version tag is pushed. Uses PyPI trusted publishing
+# (OpenID Connect), so there is no API token anywhere in this repository or its secrets:
+# PyPI trusts this specific workflow in this specific repository, and nothing else.
+#
+# One-time setup on pypi.org, done by a project owner, not by this file:
+#   Your projects -> Publishing -> Add a pending publisher
+#     PyPI project name : open-mhs
+#     Owner             : Abenor-Labs
+#     Repository        : Open-MHS
+#     Workflow name     : publish.yml
+#     Environment       : pypi
+#
+# The `pypi` environment below should be created in the repository settings with a
+# required reviewer, so a tag push builds immediately but the upload waits for a person.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist and wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: The tag must match the package version
+        # A v0.3.1 tag that uploads 0.3.0 is the kind of mistake that is permanent on
+        # PyPI. Refuse before anything leaves this runner.
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION="$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          echo "tag=$TAG version=$VERSION"
+          test "$TAG" = "$VERSION" || { echo "::error::tag $TAG != pyproject version $VERSION"; exit 1; }
+        if: github.event_name == 'push'
+
+      - name: Install the wheel into a clean environment and construct the app
+        # The two packaging bugs this project has shipped so far were both invisible from
+        # a checkout and both fatal from `pip install`. Never publish what has not been
+        # installed.
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install -q dist/*.whl
+          cd /tmp
+          OPEN_MHS_AUTH_TOKEN=cleanroomtokencleanroomtoken OPEN_MHS_AUDIT_LOG=off \
+            /tmp/clean/bin/python -c "import open_mhs; open_mhs.create_app(); print('ok', open_mhs.__version__)"
+          /tmp/clean/bin/open-mhs describe "$GITHUB_WORKSPACE/examples/robotic_arm.mhs" | head -3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Upload to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    environment:
+      name: pypi
+      url: https://pypi.org/project/open-mhs/
+    permissions:
+      id-token: write   # the OIDC token PyPI verifies; nothing else is granted
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
+
+  release:
+    name: GitHub release with the wheel attached
+    needs: publish
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Extract this version's changelog section
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## "v" " {on=1; next}
+            on && /^## / {exit}
+            on {print}
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || echo "See CHANGELOG.md." > notes.md
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Open-MHS $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --verify-tag

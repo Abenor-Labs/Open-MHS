@@ -1,8 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-09-02
 
-Both found by driving the robosuite cell live through MCP, not by reading code.
+First version with a green CI on every job, and the first tag the publish workflow
+uploads. The fixes below were found by driving the robosuite cell live through MCP, not by
+reading code.
+
+### Added
+- **A publish workflow.** A `v*.*.*` tag builds the sdist and wheel, refuses if the tag
+  and `pyproject.toml` disagree, installs the wheel into a clean environment and
+  constructs the app, then uploads to PyPI through trusted publishing (no API token
+  anywhere) behind a reviewed `pypi` environment, and attaches the wheel to a GitHub
+  release with this changelog section as the notes.
+- **The counterfactual.** `examples/robosuite_demo/without_mhs.py` drives the same cell
+  with no middleware and commands the tool 10 cm below the table. Measured: it bottoms
+  out on the table at about 0.808 m, stopped by physics rather than software. The
+  script exits non-zero if the physics do not show that.
+- **A self-verifying showcase** (`examples/showcase.py`) and a recording guide. Every
+  beat asserts what the middleware was supposed to do; a green run is evidence, not a
+  rehearsal. CI runs it.
 
 ### Fixed
 - **Verification polls instead of sleeping once.** `settle_time_ms` was a fixed wait
@@ -18,6 +34,16 @@ Both found by driving the robosuite cell live through MCP, not by reading code.
 - **The audit log no longer records a transmitted write as `transmitted: null`.** A
   desync is `write.desync` with the value that went out; a transport failure is
   `write.failed` with `transmitted: "unknown"`. Both were being logged as refusals.
+- **CI was red on every push in the repository's history** and nobody could tell from a
+  checkout. Three causes: the tag-validation step imported a pre-rename module path; CI
+  resolved a newer ruff than the dev machine, with rules the pinned config did not enable
+  (ruff is now pinned); and a newer Starlette wraps included routers so the auth guard
+  found no routes and would have passed vacuously — its own assertion caught that. Also
+  the showcase printed box drawing to a cp1252 stdout on the Windows runner.
+- **The test suite was not hermetic.** A token left exported in the shell from a live
+  demo overrode the fixtures' header and 38 tests failed with 401, twice, and both times
+  the wrong thing was blamed. The suite now clears `OPEN_MHS_AUTH_TOKEN` and
+  `OPEN_MHS_URL` and is proven against a deliberately leaked token.
 
 ## 0.3.0 — 2026-09-02
 

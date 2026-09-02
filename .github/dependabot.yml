@@ -1,0 +1,27 @@
+# Dependency update proposals, as pull requests, so a dependency never moves silently.
+#
+# The middleware's own pins are deliberately wide (see requirements.txt); what this
+# catches is the case the repo already hit once: CI resolving a newer release than the
+# developer's machine and behaving differently. A weekly PR is where that shows up first.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the framework stack rather than five that must land together.
+      web:
+        patterns: ["fastapi", "starlette", "uvicorn", "pydantic", "httpx", "anyio"]
+      tooling:
+        patterns: ["pytest*", "ruff"]
+    ignore:
+      # Simulator pins are load-bearing (MuJoCo 3.4 renamed MjData.qM; see CLAUDE.md).
+      - dependency-name: mujoco
+      - dependency-name: robosuite
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

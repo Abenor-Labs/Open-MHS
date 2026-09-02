@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "open-mhs"
-version = "0.3.0"
+version = "0.3.1"
 description = "Open Model Hardware Standard - a vendor-neutral driver specification for AI agents to safely operate physical hardware."
 readme = "README.md"
 requires-python = ">=3.10"

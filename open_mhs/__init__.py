@@ -62,7 +62,7 @@ from open_mhs.server.safety import SafetyDecision, check_write, effective_bounds
 #: Implementation version. Distinct from the Capability Tag spec version
 #: (`LATEST_SPEC_VERSION`), which is a wire contract between anyone who writes a tag and
 #: anyone who reads one. See the Versioning section of the README.
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     # the specification, as types
