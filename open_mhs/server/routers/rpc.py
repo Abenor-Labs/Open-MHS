@@ -41,6 +41,7 @@ from open_mhs.server.errors import (
     MethodNotFound,
     MHSError,
     ParseError,
+    StateDesync,
 )
 from open_mhs.server.models import (
     Actuator,
@@ -207,8 +208,37 @@ async def _write(params: WriteParams, registry: Registry, ctx: Ctx) -> dict[str,
             params.device_id,
             params.target,
         )
+    except StateDesync as exc:
+        # Not a refusal: the value WAS transmitted, then the feedback disagreed. An audit
+        # line saying "transmitted: null" here would be false, and false in the direction
+        # that matters, because the machine did receive a command.
+        #
+        # The clamp happened HERE, before the driver ever saw the value, so the driver's
+        # desync cannot know about it. Attach it, or the caller is told "commanded 0.83"
+        # and never learns that it asked for 0.70.
+        if decision.clamped:
+            exc.data["clamped"] = True
+            exc.data["requested"] = decision.original
+            exc.data["clamp_reason"] = decision.reason
+        ctx.audit.record(
+            "write.desync", device_id=params.device_id, target=params.target, params=logged,
+            outcome={
+                "transmitted": decision.value,
+                "requested": decision.original,
+                "clamped": decision.clamped,
+                "observed": exc.data.get("observed"),
+                "error": exc.to_rpc(),
+            },
+        )
+        raise
     except MHSError as exc:
-        refused(exc)
+        # The transport failed somewhere in the act of transmitting. Whether any byte
+        # reached the device is unknown, and the record says so rather than guessing.
+        ctx.audit.record(
+            "write.failed", device_id=params.device_id, target=params.target, params=logged,
+            outcome={"transmitted": "unknown", "attempted": decision.value,
+                     "error": exc.to_rpc()},
+        )
         raise
 
     record.last_write[params.target] = (decision.value, time.monotonic())

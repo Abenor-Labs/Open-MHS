@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 from abc import ABC
@@ -32,6 +33,9 @@ log = logging.getLogger("open_mhs.driver")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOLERANCE = 1e-6
+
+#: How often the feedback sensor is sampled while waiting for an actuator to settle.
+VERIFY_POLL_S = 0.05
 
 Sleeper = Callable[[float], Awaitable[None]]
 
@@ -200,7 +204,16 @@ class BaseDevice(ABC):
             ) from exc
 
         self._last_write[target] = (absolute, time.monotonic())
-        verification = await self._verify(actuator, absolute)
+        try:
+            verification = await self._verify(actuator, absolute)
+        except StateDesync as exc:
+            # The clamp is the more important fact and the desync must not hide it: a
+            # caller told only "commanded 0.83, reads 0.91" believes it asked for 0.83.
+            if decision.clamped:
+                exc.data["clamped"] = True
+                exc.data["requested"] = decision.original
+                exc.data["clamp_reason"] = decision.reason
+            raise
         result = {
             "driver": type(self).__name__,
             "written": absolute,
@@ -282,22 +295,39 @@ class BaseDevice(ABC):
         if not actuator.feedback_sensor:
             return {"verified": False, "reason": "actuator declares no feedback_sensor"}
 
-        if actuator.settle_time_ms:
-            await self._sleep(actuator.settle_time_ms / 1000)
-
-        observed = await self.read(actuator.feedback_sensor)
         sensor = self.sensor(actuator.feedback_sensor)
         tolerance = sensor.accuracy if sensor and sensor.accuracy else DEFAULT_TOLERANCE
+        numeric = isinstance(commanded, (int, float)) and not isinstance(commanded, bool)
 
-        if isinstance(commanded, (int, float)) and not isinstance(commanded, bool):
-            ok = isinstance(observed, (int, float)) and abs(observed - commanded) <= tolerance
-        else:
-            ok = observed == commanded
+        def settled(observed: Any) -> bool:
+            if numeric:
+                return isinstance(observed, (int, float)) and abs(observed - commanded) <= tolerance
+            return observed == commanded
 
-        if not ok:
+        # `settle_time_ms` is the LONGEST the actuator may take, not a fixed wait. The
+        # sensor is polled and verification returns the moment it agrees, so a short move
+        # is confirmed quickly and a long one is given the whole budget. A single blind
+        # read after a fixed sleep did the wrong thing in both directions: it stalled on
+        # moves that had already finished, and on a full-span move it sampled the sensor
+        # mid-travel and reported a desync for hardware that was doing exactly as told.
+        budget_s = (actuator.settle_time_ms or 0) / 1000
+        polls = max(1, math.ceil(budget_s / VERIFY_POLL_S)) if budget_s else 1
+        interval = budget_s / polls if budget_s else 0.0
+        started = time.monotonic()
+        observed = await self.read(actuator.feedback_sensor)
+        for _ in range(polls):
+            if settled(observed):
+                break
+            if interval:
+                await self._sleep(interval)
+            observed = await self.read(actuator.feedback_sensor)
+        waited_ms = round((time.monotonic() - started) * 1000, 1)
+
+        if not settled(observed):
             raise StateDesync(
                 f"{self.device_id}: {actuator.id} was commanded to {commanded!r} but "
-                f"{actuator.feedback_sensor} reads {observed!r}",
+                f"{actuator.feedback_sensor} reads {observed!r} after "
+                f"{actuator.settle_time_ms or 0} ms",
                 {
                     "device_id": self.device_id,
                     "target": actuator.id,
@@ -305,9 +335,16 @@ class BaseDevice(ABC):
                     "observed": observed,
                     "feedback_sensor": actuator.feedback_sensor,
                     "tolerance": tolerance,
+                    "settle_time_ms": actuator.settle_time_ms,
+                    "waited_ms": waited_ms,
                 },
             )
-        return {"verified": True, "observed": observed, "feedback_sensor": actuator.feedback_sensor}
+        return {
+            "verified": True,
+            "observed": observed,
+            "feedback_sensor": actuator.feedback_sensor,
+            "settled_ms": waited_ms,
+        }
 
     # --- discovery ---
 

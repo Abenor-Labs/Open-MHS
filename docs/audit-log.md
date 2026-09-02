@@ -14,12 +14,18 @@ to an existing file and continues its chain.
 |---|---|
 | `seq` | 1-based line number, continuous |
 | `ts` | Unix time the line was written |
-| `event` | `write.accepted`, `write.clamped`, `write.refused`, `estop`, `estop_all`, `duration.expired`, `register`, `deregister`, `check` |
+| `event` | `write.accepted`, `write.clamped`, `write.refused`, `write.desync`, `write.failed`, `estop`, `estop_all`, `duration.expired`, `register`, `deregister`, `check` |
 | `device_id`, `target` | what was addressed (`null` for cell-wide events) |
 | `params` | what the caller sent |
 | `outcome` | `transmitted` (the value that reached the driver, or `null`), `error` (the JSON-RPC error object on refusal), and event-specific fields |
 | `prev` | hash of the previous line; 64 zeros on the first |
 | `hash` | SHA-256 of this line's canonical JSON without `hash` |
+
+`write.refused` means nothing reached the driver. `write.desync` means the value **was**
+transmitted and the feedback sensor then disagreed; `transmitted` carries the value that
+went out, and `clamped`/`requested` say whether it was the caller's value or a corrected
+one. `write.failed` means the transport raised mid-transmission and whether any byte
+arrived is unknown, which is what `transmitted: "unknown"` records rather than guessing.
 
 Reads are not logged. They change nothing and would drown the file.
 

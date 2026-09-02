@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+Both found by driving the robosuite cell live through MCP, not by reading code.
+
+### Fixed
+- **Verification polls instead of sleeping once.** `settle_time_ms` was a fixed wait
+  followed by a single read, so a full-span Cartesian move was sampled mid-travel and
+  reported as a state desync for hardware doing exactly as told. Every write to the
+  Panda desynced. It is now a budget: the feedback sensor is polled every 50 ms and
+  verification returns the moment it agrees. The Panda tag's budgets were re-measured
+  (3000 ms pose, 2000 ms yaw).
+- **A desync no longer hides a clamp.** A below-floor `tcp_z` was clamped to the floor,
+  then desynced while still travelling, and the reply said only "commanded 0.83" — the
+  caller was never told its 0.70 had been corrected. The desync error and the MCP text
+  now carry `clamped`, `requested` and the reason.
+- **The audit log no longer records a transmitted write as `transmitted: null`.** A
+  desync is `write.desync` with the value that went out; a transport failure is
+  `write.failed` with `transmitted: "unknown"`. Both were being logged as refusals.
+
 ## 0.3.0 — 2026-09-02
 
 **Breaking.** Everything moved under one package and the library surface is now declared.

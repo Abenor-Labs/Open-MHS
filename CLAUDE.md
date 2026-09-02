@@ -92,6 +92,7 @@ still read `vision`.
 | Servo | `KP = 10`, clipped to `[-1, 1]`; OSC clamps to ±0.05 m/step → 0.2 mm accuracy |
 | Vision error | ~16 mm in XY, ~29 mm total. Blob centroid sits on the cube's visible face |
 | Vision-only pick | 5/5 success |
+| Settle, full span | `tcp_x` ±0.2 ≈ 2.2 s, `tcp_z` 0.83↔1.15 ≈ 1.9 s (measured 2026-09-02 on the live cell). Tag budgets are 3000 ms pose / 2000 ms yaw; verification polls and returns early |
 
 **pybullet cell** (`examples/pybullet_demo/live_lab.py`)
 

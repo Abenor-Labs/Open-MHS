@@ -89,7 +89,7 @@
       "write_mode": "absolute",
       "default": 0.0,
       "feedback_sensor": "tcp_x_actual",
-      "settle_time_ms": 800
+      "settle_time_ms": 3000
     },
     {
       "id": "tcp_y",
@@ -99,7 +99,7 @@
       "write_mode": "absolute",
       "default": 0.0,
       "feedback_sensor": "tcp_y_actual",
-      "settle_time_ms": 800
+      "settle_time_ms": 3000
     },
     {
       "id": "tcp_z",
@@ -109,7 +109,7 @@
       "write_mode": "absolute",
       "default": 1.05,
       "feedback_sensor": "tcp_z_actual",
-      "settle_time_ms": 800
+      "settle_time_ms": 3000
     },
     {
       "id": "gripper_state",
@@ -132,7 +132,7 @@
       "write_mode": "absolute",
       "default": 0.0,
       "feedback_sensor": "tcp_yaw_actual",
-      "settle_time_ms": 800
+      "settle_time_ms": 2000
     }
   ],
   "safety_limits": [

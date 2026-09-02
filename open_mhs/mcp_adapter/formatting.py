@@ -370,14 +370,30 @@ def _hardware_error(exc: RemoteRPCError) -> str:
 
 def _state_desync(exc: RemoteRPCError) -> str:
     d = exc.data
-    return (
+    lines = [
         f"STATE DESYNC (code {exc.code}). The command was transmitted, but the hardware did "
-        "not end up where it was told to go.\n"
+        "not end up where it was told to go."
+    ]
+    if d.get("clamped"):
+        # Two things went wrong and the caller needs both. Its value was not used, AND
+        # the value that was used did not land. Reporting only the second leaves it
+        # believing it asked for the clamped value in the first place.
+        lines.append(
+            f"You requested {d.get('requested')}; that was OUTSIDE the envelope and was "
+            f"clamped to {d.get('commanded')} before transmission. "
+            f"{quote_device_text(d.get('clamp_reason'))}"
+        )
+    lines.append(
         f"Commanded: {d.get('commanded')}. Feedback sensor {d.get('feedback_sensor')} "
-        f"reads: {d.get('observed')}.\n"
+        f"reads: {d.get('observed')}"
+        + (f" after waiting {d.get('settle_time_ms')} ms" if d.get("settle_time_ms") else "")
+        + "."
+    )
+    lines.append(
         "Your model of this device is now wrong. Stop, re-read the device state, and "
         "consider an emergency stop if the divergence is unsafe."
     )
+    return "\n".join(lines)
 
 
 def _method_not_found(exc: RemoteRPCError) -> str:

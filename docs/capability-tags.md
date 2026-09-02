@@ -71,6 +71,11 @@ sensors must declare `enum_values`.
 
 - `feedback_sensor` names the sensor reporting the achieved state, so an agent can verify a
   write instead of assuming it took effect.
+- `settle_time_ms` is the **longest** the actuator may take to reach a commanded value. It
+  is a budget, not a fixed wait: the feedback sensor is polled and verification returns the
+  moment it agrees, so a short move is confirmed quickly and a full-span move gets the whole
+  budget. Declare the time of the slowest legal move, measured. A budget shorter than that
+  makes verification report a desync for hardware doing exactly as told.
 - `requires_confirmation: true` forces the middleware to obtain explicit human approval
   before dispatch. Use it for anything that grips, heats, energizes, or dispenses.
 - `write_mode: "relative"` means the written value is a delta. Safety limits always apply
