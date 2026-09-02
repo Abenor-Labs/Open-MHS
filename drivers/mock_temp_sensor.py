@@ -14,12 +14,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import random
+from pathlib import Path
 from typing import Any
 
 from drivers.base import BaseDevice
 from drivers.transport import InMemoryTransport
 
-TAG_PATH = "examples/mock_temp_sensor.mhs"
+TAG_PATH = Path(__file__).parent / "tags" / "mock_temp_sensor.mhs"
 
 
 class MockTempSensor(BaseDevice):

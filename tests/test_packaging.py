@@ -21,6 +21,27 @@ def test_packaged_schema_is_byte_identical_to_the_canonical_one() -> None:
     assert PACKAGED.read_bytes() == CANONICAL.read_bytes()
 
 
+@pytest.mark.parametrize("name", ["mock_temp_sensor.mhs", "robotic_arm.mhs", "bench_pump.mhs"])
+def test_packaged_reference_tags_match_the_examples(name: str) -> None:
+    """The reference drivers load their tags from inside the wheel. `open-mhs serve`
+    once crashed after `pip install` because they read from examples/, which is not
+    shipped. If this fails: `cp examples/<name> drivers/tags/<name>`."""
+    packaged = REPO_ROOT / "drivers" / "tags" / name
+    canonical = REPO_ROOT / "examples" / name
+    assert packaged.read_bytes() == canonical.read_bytes()
+
+
+def test_reference_drivers_construct_without_the_repo_checkout(tmp_path, monkeypatch) -> None:
+    """Their tag paths must be absolute and inside the package, not repo-relative."""
+    from drivers.mock_pump import MockPump
+    from drivers.mock_robotic_arm import MockRoboticArm
+    from drivers.mock_temp_sensor import MockTempSensor
+
+    monkeypatch.chdir(tmp_path)
+    for cls in (MockTempSensor, MockRoboticArm, MockPump):
+        assert cls().tag.device_id
+
+
 def test_packaged_schema_is_reachable_as_package_data() -> None:
     text = resources.files("server").joinpath("capability_schema.json").read_text("utf-8")
     schema = json.loads(text)

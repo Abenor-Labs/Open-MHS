@@ -28,6 +28,11 @@ Package: **0.2.0**. First public release.
 - `schema/capability_schema.json` is included in the wheel.
 - Python 3.10 is tested in CI, matching `requires-python`.
 - Docs said 184 tests; the count is in `docs/DEVELOPING.md` and kept current.
+- Two bugs found only by installing the wheel into a clean venv and constructing the app:
+  `server.routers` was not packaged (flat package list), and the reference drivers read
+  their tags from `examples/`, which the wheel does not ship. Subpackages are now found
+  by pattern and the three reference tags ship inside `drivers/tags/`; both are guarded
+  by tests in `tests/test_packaging.py`.
 
 ### Not in this release
 - **No real-hardware validation.** Everything is simulated. The serial driver is tested

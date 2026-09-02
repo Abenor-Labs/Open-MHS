@@ -6,12 +6,13 @@ enforce, and so the multi-device example has an instrument that is not an arm.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from drivers.base import BaseDevice
 from drivers.transport import InMemoryTransport
 
-TAG_PATH = "examples/bench_pump.mhs"
+TAG_PATH = Path(__file__).parent / "tags" / "bench_pump.mhs"
 TRAY_ML = 5.0
 ML_PER_COMMAND_PER_UNIT_FLOW = 0.01
 

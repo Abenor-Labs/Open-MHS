@@ -11,12 +11,13 @@ e-stop flag clears the moment a joint moves again.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from drivers.base import BaseDevice
 from drivers.transport import InMemoryTransport
 
-TAG_PATH = "examples/robotic_arm.mhs"
+TAG_PATH = Path(__file__).parent / "tags" / "robotic_arm.mhs"
 
 AMBIENT_C = 24.0
 HEATING_C_PER_DEG = 0.08

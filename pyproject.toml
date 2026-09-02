@@ -54,6 +54,8 @@ include = ["server*", "drivers*", "mcp_adapter*", "cli*"]
 # packaged here so `pip install open-mhs` ships it; tests/test_packaging.py fails if the
 # two ever differ.
 server = ["capability_schema.json"]
+# The reference drivers' tags. Canonical copies live in examples/; same drift test.
+drivers = ["tags/*.mhs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
