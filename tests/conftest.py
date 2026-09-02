@@ -38,9 +38,19 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(autouse=True)
-def _audit_log_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No test writes an audit file into the working tree unless it asks for one."""
+def _hermetic_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The suite must not see the developer's shell.
+
+    No test writes an audit file into the working tree unless it asks for one. And a
+    token or URL left exported from a live demo must not reach the clients under test:
+    `OpenMHSClient` reads `OPEN_MHS_AUTH_TOKEN` when none is passed, and that header
+    overrides the fixture's, so every in-process call answered 401 and thirty-eight tests
+    failed for a reason that had nothing to do with the code. CI never saw it because CI
+    has no such variable, which is exactly the kind of green that is worth distrusting.
+    """
     monkeypatch.setenv("OPEN_MHS_AUDIT_LOG", "off")
+    for name in ("OPEN_MHS_AUTH_TOKEN", "OPEN_MHS_URL"):
+        monkeypatch.delenv(name, raising=False)
 
 
 def load_tag(path: Path) -> dict[str, Any]:
