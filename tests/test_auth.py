@@ -97,15 +97,39 @@ def test_the_correct_token_verifies() -> None:
 
 
 def _guarded_routes(app) -> list[tuple[str, str]]:
-    """(method, path) for every route that is not deliberately public."""
-    found = []
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None) or set()
-        if path in PUBLIC_PATHS or path is None:
-            continue
-        for method in sorted(methods - {"HEAD", "OPTIONS"}):
-            found.append((method, path))
+    """(method, path) for every route that is not deliberately public.
+
+    Walks nested routers too. Starlette 1.x mounts an included router as a single child
+    with its own `.routes`, so a flat scan of `app.routes` sees no hardware routes at all
+    and this guard would pass vacuously. The assertion below catches that, which is how
+    the change was noticed: CI resolved a newer Starlette than the dev machine had.
+    """
+    found: list[tuple[str, str]] = []
+
+    def walk(routes, prefix: str = "") -> None:
+        for route in routes:
+            # Starlette 1.x wraps an included router as `_IncludedRouter`, which carries the
+            # real router as `original_router` and any prefix in `include_context`.
+            inner = getattr(route, "original_router", None)
+            if inner is not None:
+                ctx = getattr(route, "include_context", None)
+                walk(inner.routes, prefix + (getattr(ctx, "prefix", "") or ""))
+                continue
+            children = getattr(route, "routes", None)
+            if children is not None:
+                walk(children, prefix + (getattr(route, "path", "") or ""))
+                continue
+            path = getattr(route, "path", None)
+            methods = getattr(route, "methods", None) or set()
+            if path is None:
+                continue
+            full = prefix + path
+            if full in PUBLIC_PATHS:
+                continue
+            for method in sorted(methods - {"HEAD", "OPTIONS"}):
+                found.append((method, full))
+
+    walk(app.routes)
     return found
 
 
