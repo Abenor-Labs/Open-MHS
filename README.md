@@ -8,11 +8,11 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-8A63D2.svg)](https://modelcontextprotocol.io)
-[![Tests passing](https://img.shields.io/badge/tests-331%20passing-brightgreen.svg)](#testing)
+[![Tests passing](https://img.shields.io/badge/tests-372%20passing-brightgreen.svg)](#testing)
 
 *An agent asks for 300°. The arm is bounded to 90°. Nothing moves.*
 
-**331 tests · 2 independent enforcement points · 5 typed error codes · MCP-native · real
+**372 tests · 36/36 unsafe commands blocked · 2 independent enforcement points · 5 typed error codes · MCP-native · real
 serial hardware driver · CI across Python 3.10/3.11/3.12 on Linux and Windows**
 
 </div>
@@ -211,6 +211,35 @@ await pump.write("flow_rate", 500.0)    # SafetyLimitViolation, nothing sent
 safety evaluator itself (`check_write`, `effective_bounds`, so a planner can ask "would
 this be allowed?" without writing), `create_app`, `AuditLog`, and the error classes. That
 list is pinned by a test: adding a name is a feature, removing one is a breaking change.
+
+### What it actually refuses
+
+Claims about safety are worth what their evidence is worth, so there is a benchmark rather
+than an assertion. It generates a corpus from whatever capability tags are registered —
+bounds probed at their edges and far outside, wrong types, rate violations, states the
+hardware supports but policy forbids, the confirmation gate, writes to sensors, unknown
+channels and unknown devices — and records what happened to each one.
+
+```bash
+open-mhs bench --out my-cell.md
+```
+
+Against the three reference devices:
+
+| | |
+|---|---|
+| Unsafe commands blocked | 36/36 |
+| Legal commands accepted | 11/11 |
+| Refusals that still moved the hardware | 0 |
+
+The full report is [`docs/benchmarks/reference-cell.md`](docs/benchmarks/reference-cell.md).
+
+The measurement is deliberately not "did an error come back", because a refusal that still
+transmitted would answer that correctly and break a machine anyway. Every attempt is
+bracketed by reads of its target, so the question is whether the world changed. And a
+clean run proves nothing unless a dirty one would be caught: deleting both enforcement
+points by hand takes the same cell from 36/36 to 17/36, and a test runs the corpus against
+a middleware that refuses writes and performs them anyway, requiring the leak to be found.
 
 ### Three gates, one enforcer
 
@@ -444,7 +473,7 @@ produce a misleading recording.
 
 **Quality**
 
-- [x] 331 tests, no hardware required, including the multi-device and controller examples run end to end
+- [x] 372 tests, no hardware required, including the multi-device and controller examples run end to end
 - [x] CI on Python 3.10, 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
 - [x] Driver compliance smoke test — five checks in 0.1 s against a real driver and a real
       tag, covering reads, in-bounds writes, refusals, clamping and conditional bounds
@@ -566,8 +595,8 @@ open_mhs/                the package; `import open_mhs` for the public API
   mcp_adapter/           MCP server wrapping the HTTP surface
   cli/                   the open-mhs command, plus the export and doc generators
 examples/                worked capability tags, the sim demos, the cell and controller agents
-docs/                    spec docs, audit log format, threat model, standards map, RFCs
-tests/                   331 tests, no hardware required
+docs/                    spec docs, audit log, threat model, standards map, benchmarks, RFCs
+tests/                   372 tests, no hardware required
 ```
 
 **Error codes**
@@ -594,7 +623,7 @@ Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 ## Testing
 
 ```bash
-pytest                                    # 331 tests, no hardware required
+pytest                                    # 372 tests, no hardware required
 pytest tests/test_driver_compliance.py    # 5-check smoke test, 0.1 s
 python tests/test_crypto_bridge.py        # signing flow, narrated
 ruff check .
@@ -609,7 +638,7 @@ test → real /rpc route → real driver class → FAKE transport
                                              ^^^^ only this is fake
 ```
 
-What the 331 tests actually cover:
+What the 372 tests actually cover:
 
 | Area | What is proved |
 | --- | --- |

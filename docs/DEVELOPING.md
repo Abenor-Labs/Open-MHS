@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\ac
 pip install -r requirements.txt
 pip install -e . ruff
 
-pytest              # 331 tests, ~20 seconds, no hardware
+pytest              # 372 tests, ~25 seconds, no hardware
 ruff check .
 ```
 
