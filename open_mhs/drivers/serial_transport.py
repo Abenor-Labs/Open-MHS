@@ -99,7 +99,7 @@ class SerialTransport(Transport):
     def _pyserial_factory(self) -> SerialLike:
         """Import pyserial only when a real port is actually wanted."""
         try:
-            import serial  # noqa: PLC0415 - optional dependency, imported on demand
+            import serial
         except ImportError as exc:  # pragma: no cover - depends on the install
             raise TransportError(
                 "pyserial is not installed; `pip install pyserial` to drive a real port"
@@ -108,7 +108,7 @@ class SerialTransport(Transport):
             return serial.Serial(
                 port=self.port, baudrate=self.baudrate, timeout=self.timeout_s
             )
-        except Exception as exc:  # noqa: BLE001 - pyserial raises several unrelated types
+        except Exception as exc:
             raise TransportError(f"cannot open {self.port}: {exc}") from exc
 
     @property
@@ -129,7 +129,7 @@ class SerialTransport(Transport):
             return
         try:
             await anyio.to_thread.run_sync(conn.close)
-        except Exception as exc:  # noqa: BLE001 - closing must not raise into a handler
+        except Exception as exc:
             log.warning("error closing %s: %s", self.port, exc)
 
     async def __aenter__(self) -> SerialTransport:
@@ -151,7 +151,7 @@ class SerialTransport(Transport):
         conn = await self._connection()
         try:
             await anyio.to_thread.run_sync(partial(conn.write, data))
-        except Exception as exc:  # noqa: BLE001 - any port failure is a transport failure
+        except Exception as exc:
             raise TransportError(f"{self.port}: write failed: {exc}") from exc
 
     async def read_bytes(self) -> bytes:
@@ -159,7 +159,7 @@ class SerialTransport(Transport):
         conn = await self._connection()
         try:
             return await anyio.to_thread.run_sync(conn.readline)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise TransportError(f"{self.port}: read failed: {exc}") from exc
 
     # --- line level ---
@@ -221,7 +221,7 @@ class SerialTransport(Transport):
         conn = await self._connection()
         try:
             await anyio.to_thread.run_sync(conn.reset_input_buffer)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise TransportError(f"{self.port}: cannot flush input: {exc}") from exc
         await self.write_line(query)
         return await self.read_line()

@@ -187,7 +187,7 @@ def _make_backdrop() -> np.ndarray:
 def _enable_ansi() -> None:
     """Windows terminals need virtual-terminal processing turned on before ANSI works."""
     if os.name == "nt":
-        os.system("")  # noqa: S605 - the documented no-op that flips the console mode
+        os.system("")
 
 
 # --------------------------------------------------------------------------------------
@@ -547,7 +547,7 @@ def load_checker() -> tuple[object, bool]:
                 return exc.to_rpc()
 
         return check, True
-    except Exception:  # noqa: BLE001 - the demo must run from a copied folder too
+    except Exception:
         limit = next(item for item in tag_doc["safety_limits"] if item["target"] == TARGET)
 
         def check(degrees: float) -> dict | None:

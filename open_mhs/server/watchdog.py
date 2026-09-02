@@ -76,7 +76,7 @@ class Watchdog:
                 outcome["returned_to"] = actuator.default
             except MHSError as exc:
                 outcome["error"] = exc.to_rpc()
-            except Exception as exc:  # noqa: BLE001 - must still reach the e-stop below
+            except Exception as exc:
                 outcome["error"] = f"{type(exc).__name__}: {exc}"
         else:
             outcome["error"] = "actuator declares no default"
@@ -85,7 +85,7 @@ class Watchdog:
                 stopped = await driver.emergency_stop()
                 record.last_write.clear()
                 outcome["emergency_stop"] = {"executed": True, **stopped}
-            except Exception as exc:  # noqa: BLE001 - report, never raise from a task
+            except Exception as exc:
                 outcome["emergency_stop"] = {
                     "executed": False, "error": f"{type(exc).__name__}: {exc}"
                 }

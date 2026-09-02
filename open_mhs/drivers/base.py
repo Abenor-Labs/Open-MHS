@@ -188,7 +188,7 @@ class BaseDevice(ABC):
             # Honour the tag even when this driver is used without the middleware.
             try:
                 exc.data["emergency_stop"] = {"executed": True, **await self.emergency_stop()}
-            except Exception as stop_exc:  # noqa: BLE001 - the violation is the headline
+            except Exception as stop_exc:
                 exc.data["emergency_stop"] = {
                     "executed": False, "error": f"{type(stop_exc).__name__}: {stop_exc}"
                 }
@@ -272,7 +272,7 @@ class BaseDevice(ABC):
         for target in targets:
             try:
                 state[target] = await self.read(target)
-            except Exception:  # noqa: BLE001 - never let a bad read open a bound
+            except Exception:
                 log.warning(
                     "%s: could not read %r for the conditional limit on %s; using the "
                     "base bound", self.device_id, target, limit.target,

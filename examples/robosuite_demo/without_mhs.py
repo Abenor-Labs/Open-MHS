@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from cell import Workcell  # noqa: E402
+from cell import Workcell
 
 TABLE_TOP = 0.800          # measured, see CLAUDE.md
 FLOOR_WITH_MHS = 0.83      # what the capability tag would have held the tool to

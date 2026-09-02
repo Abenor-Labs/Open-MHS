@@ -269,7 +269,7 @@ class Workcell:
                 if self.env._check_grasp(gripper=self.env.robots[0].gripper,
                                          object_geoms=block):
                     return block.name
-            except Exception:  # noqa: BLE001 - a missing helper must not stop the cell
+            except Exception:
                 continue
         return "nothing"
 
@@ -307,7 +307,7 @@ class Workcell:
         try:
             frame = self.env.sim.render(width=POV_RENDER, height=POV_RENDER,
                                         camera_name=POV_CAMERA)
-        except Exception:  # noqa: BLE001 - a viewer garnish must never stop the cell
+        except Exception:
             return None
         img = cv2.resize(np.ascontiguousarray(frame), (POV_INSET, POV_INSET),
                          interpolation=cv2.INTER_AREA)
@@ -458,11 +458,11 @@ class Workcell:
         if self._pov_open:
             try:
                 cv2.destroyWindow(POV_WINDOW)
-            except Exception:  # noqa: BLE001 - a stuck window must not block exit
+            except Exception:
                 pass
         time.sleep(0.2)
         if self._viewer is not None:
             try:
                 self._viewer.close()
-            except Exception:      # noqa: BLE001 - closing must not raise on the way out
+            except Exception:
                 pass

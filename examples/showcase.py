@@ -58,7 +58,7 @@ def _enable_ansi() -> None:
 
             k = ctypes.windll.kernel32
             k.SetConsoleMode(k.GetStdHandle(-11), 7)
-        except Exception:  # noqa: BLE001 - colour is cosmetic
+        except Exception:
             pass
 
 

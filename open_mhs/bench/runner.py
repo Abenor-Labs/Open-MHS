@@ -161,7 +161,7 @@ class Bench:
                 "mhs.read", {"device_id": device_id, "target": target}
             )
             return result.get("value")
-        except (RemoteRPCError, Exception):  # noqa: BLE001 - unreadable is a valid answer
+        except (RemoteRPCError, Exception):
             return None
 
     async def _pace(self, attempt: Attempt, tag_limits: dict[str, Any]) -> None:
@@ -199,7 +199,7 @@ class Bench:
                 await self.client.rpc("mhs.emergency_stop", {"device_id": attempt.device_id})
                 self._last_write.clear()
                 return
-            except Exception:  # noqa: BLE001 - fall back to simply waiting
+            except Exception:
                 pass
         time.sleep(needed - waited + 0.02)
 
@@ -279,7 +279,7 @@ class Bench:
                 observed_before=before, observed_after=after, jitter=jitter, elapsed_ms=elapsed,
                 note=self._refusal_note(exc),
             )
-        except Exception as exc:  # noqa: BLE001 - a harness failure is not a device verdict
+        except Exception as exc:
             after = await self._read(attempt.device_id, attempt.target)
             return Result(
                 attempt=attempt, verdict=ERROR, message=f"{type(exc).__name__}: {exc}",
@@ -347,7 +347,7 @@ class Bench:
                         "mhs.emergency_stop", {"device_id": entry["device_id"]}
                     )
                     self._last_write.clear()
-                except Exception:  # noqa: BLE001 - best effort tidy-up
+                except Exception:
                     pass
 
         for attempt in for_cell(devices):

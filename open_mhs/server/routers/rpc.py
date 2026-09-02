@@ -297,7 +297,7 @@ async def _condition_state(
     for target in targets:
         try:
             state[target] = await driver.read(target)
-        except Exception:  # noqa: BLE001 - an unreadable condition must not open the bound
+        except Exception:
             log.warning(
                 "%s: could not read %r for a conditional limit on %s; falling back to the "
                 "base bound", device_id, target, limit.target,
@@ -318,7 +318,7 @@ async def _run_estop_for_violation(
         record.last_write.clear()
         watchdog.cancel(record.device_id)
         return {"executed": True, **stopped}
-    except Exception as exc:  # noqa: BLE001 - the violation is the headline, not this
+    except Exception as exc:
         return {"executed": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
@@ -445,7 +445,7 @@ async def _emergency_stop_all(
             record.last_write.clear()
             ctx.watchdog.cancel(record.device_id)
             devices[record.device_id] = {"stopped": True, **result}
-        except Exception as exc:  # noqa: BLE001 - keep stopping the others
+        except Exception as exc:
             devices[record.device_id] = {
                 "stopped": False, "error": f"{type(exc).__name__}: {exc}",
             }
@@ -484,7 +484,7 @@ async def _guard_hardware(awaitable: Awaitable[Any], device_id: str, target: str
         return await awaitable
     except MHSError:
         raise
-    except Exception as exc:  # noqa: BLE001 - deliberate boundary
+    except Exception as exc:
         raise HardwareExecutionError(
             f"{device_id}: driver raised {type(exc).__name__}: {exc}",
             {"device_id": device_id, "target": target, "exception": type(exc).__name__},
@@ -566,7 +566,7 @@ async def _dispatch_one(payload: Any, registry: Registry, ctx: Ctx) -> dict[str,
         result = await handler(params, registry, ctx)
     except MHSError as exc:
         return None if rpc.is_notification else _error_response(response_id, exc)
-    except Exception as exc:  # noqa: BLE001 - never leak a traceback to an agent
+    except Exception as exc:
         return (
             None
             if rpc.is_notification
