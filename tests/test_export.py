@@ -199,8 +199,8 @@ def test_the_exported_controller_example_runs_clean(live_server: str, tmp_path: 
     proc = subprocess.run(
         [_sys.executable, str(REPO_ROOT / "examples" / "exported_controller.py"),
          "--url", live_server],
-        capture_output=True, text=True, timeout=120,
-        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN, "PYTHONIOENCODING": "utf-8"}, cwd=REPO_ROOT,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert proc.stdout.rstrip().endswith("OK"), proc.stdout
@@ -224,8 +224,8 @@ def test_the_showcase_passes_against_the_reference_cell(live_server: str) -> Non
     proc = subprocess.run(
         [_sys.executable, str(REPO_ROOT / "examples" / "showcase.py"),
          "--url", live_server, "--fast"],
-        capture_output=True, text=True, timeout=120,
-        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+        env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN, "PYTHONIOENCODING": "utf-8"}, cwd=REPO_ROOT,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "Every claim in this recording was checked" in proc.stdout

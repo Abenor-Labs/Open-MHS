@@ -234,8 +234,8 @@ async def test_cell_agent_runs_clean_against_the_default_mocks(tmp_path, monkeyp
         proc = subprocess.run(
             [sys.executable, str(REPO_ROOT / "examples" / "cell_agent.py"),
              "--url", f"http://127.0.0.1:{port}"],
-            capture_output=True, text=True, timeout=60,
-            env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN}, cwd=REPO_ROOT,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+            env={**os.environ, "OPEN_MHS_AUTH_TOKEN": TEST_TOKEN, "PYTHONIOENCODING": "utf-8"}, cwd=REPO_ROOT,
         )
     finally:
         server.should_exit = True

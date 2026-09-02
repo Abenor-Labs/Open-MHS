@@ -52,6 +52,13 @@ failures: list[str] = []
 
 
 def _enable_ansi() -> None:
+    # The narration uses box drawing and check marks. A Windows console, or a CI runner
+    # capturing stdout as cp1252, would otherwise die on the first heading.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     if os.name == "nt":
         try:
             import ctypes
