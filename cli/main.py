@@ -175,7 +175,12 @@ def _describe(path: str) -> int:
         "online": False, "has_local_driver": False, "registered_at": 0, "last_seen": 0,
         "capability_tag": tag.model_dump(mode="json", exclude_none=True),
     }]}
-    print(format_discovery(summary))
+    # The renderer describes live devices. This is a file on disk, and it must not be
+    # described as a device that has stopped answering.
+    text = format_discovery(summary).replace(
+        "status: STALE (missed heartbeats)", "status: tag file only, not a live device"
+    )
+    print(text)
     return EXIT_OK
 
 

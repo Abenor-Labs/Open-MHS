@@ -64,6 +64,18 @@ Anthropic's Model Hardware Standard (MHS) targets this problem but is currently 
 research preview. **Open-MHS is the open, vendor-neutral alternative** — schema, middleware
 and reference drivers, all public and implementable by anyone.
 
+### Relationship to Anthropic's Model Hardware Standard
+
+Anthropic announced the [Model Hardware Standard](https://www.anthropic.com/news/model-hardware-standard-research-preview)
+on 27 August 2026 as a closed, apply-only research preview co-developed with HHMI Janelia.
+As of this release no specification, schema, SDK, or repository has been published.
+Open-MHS is an independent, Apache-2.0 implementation of the same idea — a device declares
+what it measures, what it adjusts, and what it refuses, and an agent reaches it through
+`read`, `write`, and discovery over MCP, a CLI, or HTTP — built in the open with a published
+schema, a test suite, and an audit trail. It is not affiliated with or endorsed by
+Anthropic. When their specification is published, this project will document a mapping
+and, where the two can be reconciled without loosening a single safety bound, an adapter.
+
 ## The Solution
 
 **Open-MHS is an intercepting bouncer between the model and the machine.**
@@ -135,22 +147,24 @@ So they are tested that way:
 ## Architecture
 
 ```text
-┌──────────────────┐
-│  Claude Desktop  │   "Move the arm to 300 degrees"
-│  or any MCP      │
-│  client          │
-└────────┬─────────┘
-         │  MCP (stdio)
-         ▼
-┌──────────────────┐   4 tools: discover / read / write / emergency_stop
-│   MCP Adapter    │   Turns refusals into text a model can act on
-│   mcp_adapter/   │
-└────────┬─────────┘
-         │  JSON-RPC 2.0 over HTTP  ·  Bearer token
-         ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│  Claude Desktop  │   │   open-mhs CLI   │   │  any HTTP client │
+│  or any MCP      │   │   (a human, or   │   │  (a script the   │
+│  client          │   │   an agent shell)│   │   agent wrote)   │
+└────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
+         │  MCP (stdio)         │                      │
+         ▼                      │                      │
+┌──────────────────┐            │                      │
+│   MCP Adapter    │  7 tools   │                      │
+│   mcp_adapter/   │            │                      │
+└────────┬─────────┘            │                      │
+         │  JSON-RPC 2.0 over HTTP  ·  Bearer token    │
+         ▼                      ▼                      ▼
 ┌──────────────────┐   ① Ingestion — capability tags validated at registration
 │  Open-MHS Server │   ② Runtime   — every write checked against the registry
-│      server/     │   ✋ BLOCKED — nothing is dispatched
+│      server/     │   ✋ BLOCKED — nothing is dispatched, refusal is audited
+│                  │   ⏱ Watchdog — max_duration_s returns a held actuator to default
+│                  │   📜 Audit    — every command and refusal, hash-chained
 └────────┬─────────┘
          │  only if the command is inside the envelope
          ▼
@@ -166,11 +180,40 @@ So they are tested that way:
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Capability Tags** (`.mhs`) | JSON Schema (draft 2020-12) in which a device declares its sensors, actuators and hardcoded safety limits. |
 | **Discovery Layer**            | HTTP registry. Hardware announces itself; agents ask what is present and get the full tag inline.          |
-| **Execution Primitives**       | JSON-RPC 2.0 at`POST /rpc` — `mhs.read`, `mhs.write`, `mhs.discover`, `mhs.emergency_stop`.     |
+| **Execution Primitives**       | JSON-RPC 2.0 at `POST /rpc` — `mhs.read`, `mhs.write`, `mhs.discover`, `mhs.emergency_stop`, and for a whole cell `mhs.snapshot`, `mhs.check`, `mhs.emergency_stop_all`. |
 | **MCP Adapter**                | Exposes all of the above to Claude Desktop, Claude Code, or any MCP client.                                |
+| **CLI**                        | `open-mhs` — the same primitives from a shell, with the same refusal text.                                |
+| **Audit log**                  | Hash-chained JSONL of every command and refusal. [`docs/audit-log.md`](docs/audit-log.md).                |
 
 The agent's entire vocabulary is two primitives — `read` observes, `write` commands — plus
 an emergency stop. One mutating surface means one place to audit.
+
+### Three gates, one enforcer
+
+An agent reaches hardware through MCP, through the `open-mhs` CLI, or through plain
+JSON-RPC from code it wrote itself. All three land on the same `/rpc` dispatcher and the
+same two enforcement points. There is no gate with a looser envelope.
+
+### Operating a cell, not a device
+
+Real work spans several instruments. Three methods make that safe without giving up the
+two-primitive vocabulary:
+
+| Method | What it does | Transmits? |
+| --- | --- | --- |
+| `mhs.snapshot` | Every channel of every device in one call; a dead sensor is reported inline, not fatal | never |
+| `mhs.check` | Dry-run a list of writes across any devices against the *current* envelopes; returns a per-item verdict with the real bound on each refusal | never, and runs no e-stop |
+| `mhs.emergency_stop_all` | Stop everything that declares an e-stop; a failure on one device never halts the loop | safe states only |
+
+`examples/cell_agent.py` uses them with no device-specific knowledge: snapshot, build a
+plan from the tags, check it, execute only what passed, snapshot again, stop all. CI runs
+it end to end against the three shipped mock devices.
+
+```bash
+open-mhs snapshot
+open-mhs check plan.json      # exit 1 if any item would be refused; nothing moved
+open-mhs estop --all
+```
 
 ## Quickstart
 
@@ -310,6 +353,12 @@ produce a misleading recording.
 - [x] Discovery registry — register, discover, heartbeat, deregister
 - [x] JSON-RPC 2.0 — `mhs.read`, `mhs.write`, `mhs.discover`, `mhs.emergency_stop`, plus
       batches and notifications
+- [x] **Multi-device** — `mhs.snapshot`, `mhs.check` (dry-run a cross-device plan; nothing
+      transmitted, no e-stop run), `mhs.emergency_stop_all` (never halts on one failure)
+- [x] **`max_duration_s` enforced** — a dead-man watchdog returns a held actuator to its
+      default, or runs the e-stop if that is refused
+- [x] **Audit log** — every command and refusal as a hash-chained JSONL line;
+      `open-mhs audit verify` finds the first broken link
 - [x] Two independent enforcement points (middleware before dispatch, driver before transmit)
 - [x] Inclusive bounds and `max_rate` rate limiting
 - [x] All three `on_violation` policies honoured: `reject`, `clamp`, `estop`
@@ -325,7 +374,10 @@ produce a misleading recording.
 
 **Integration**
 
-- [x] MCP adapter — four tools, refusals rendered as text a model can act on
+- [x] MCP adapter — seven tools, refusals rendered as text a model can act on
+- [x] `open-mhs` CLI — discover, read, write, snapshot, check, estop, describe, audit
+      verify, serve; identical refusal text to the MCP tools
+- [x] Three reference devices loaded by default: arm, temperature sensor, pump
 - [x] Real serial transport driving Marlin/GRBL-style G-code
 - [x] In-memory transport with fault injection (dead link, stuck axis)
 - [x] PyBullet demo exporting a narrated MP4
@@ -338,8 +390,8 @@ produce a misleading recording.
 
 **Quality**
 
-- [x] 207 tests, no hardware required
-- [x] CI on Python 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
+- [x] 264 tests, no hardware required, including the multi-device example run end to end
+- [x] CI on Python 3.10, 3.11 and 3.12, across Ubuntu and Windows, plus `ruff`
 - [x] Driver compliance smoke test — five checks in 0.1 s against a real driver and a real
       tag, covering reads, in-bounds writes, refusals, clamping and conditional bounds
 
@@ -415,6 +467,8 @@ a bound was evaluated against described reality. Every guarantee sits downstream
       actuator to its default, or runs the emergency stop if that is refused. Every expiry
       is audited.*
 - [x] **Conditional envelopes.** Bounds that change with device state. *Shipped in spec 0.2.*
+- [x] **Multi-device orchestration.** Snapshot, dry-run plan check, fleet stop. *Shipped
+      in 0.2.0.*
 
 #### v0.3 — trust the sender
 
@@ -425,8 +479,11 @@ a bound was evaluated against described reality. Every guarantee sits downstream
       registry requires a signature yet.
 - [ ] **Per-device credentials.** One shared secret means a compromised sensor's token can
       command a robotic arm.
-- [ ] **Persistent registry and an audit log.** The registry is in-memory: a restart forgets
-      every device, and nothing records what was commanded or refused.
+- [x] **Audit log.** *Shipped in 0.2.0.* Hash-chained, not yet signed.
+- [ ] **Persistent registry.** The registry is in-memory: a restart forgets every device.
+      Deliberate for now — a registry that survives a restart can hand an agent a tag for
+      hardware that is no longer plugged in — but a "stale until re-announced" state would
+      let both be true.
 
 #### v0.4 — trust it off this desk
 
@@ -481,7 +538,7 @@ Full specification: [`docs/capability-tags.md`](docs/capability-tags.md).
 ## Testing
 
 ```bash
-pytest                                    # 207 tests, no hardware required
+pytest                                    # 264 tests, no hardware required
 pytest tests/test_driver_compliance.py    # 5-check smoke test, 0.1 s
 python tests/test_crypto_bridge.py        # signing flow, narrated
 ruff check .
@@ -496,7 +553,7 @@ test → real /rpc route → real driver class → FAKE transport
                                              ^^^^ only this is fake
 ```
 
-What the 207 tests actually cover:
+What the 264 tests actually cover:
 
 | Area | What is proved |
 | --- | --- |
@@ -509,9 +566,15 @@ What the 207 tests actually cover:
 | Schema | Every shipped capability tag validates against both validators, and malformed ones are rejected by both |
 | Conditional bounds | A state-dependent floor tightens with the gripper, reads the *sensor* not the commanded value, and may never widen the base bound |
 | Signing | Replay, forgery, tampering, a forged approval flag, and a signed-but-unsafe command that the envelope still refuses |
+| Audit | A refused write leaves a line with the error and `transmitted: null`; an edited or deleted line breaks the chain at the right line number |
+| Watchdog | A held actuator returns to default after `max_duration_s`; a newer write restarts the timer; an e-stop cancels it; a refused return falls back to the e-stop |
+| Multi-device | `mhs.check` transmits nothing and runs no e-stop even for an `estop` limit; `mhs.emergency_stop_all` keeps going past a device that fails to stop |
+| CLI | Every command exits non-zero on refusal, and a refused write transmits nothing |
+| Example | `examples/cell_agent.py` runs end to end against a live uvicorn and the three mocks |
 
-The suite runs in about two seconds and needs no hardware, so there is no excuse for a
-driver to arrive without tests.
+The suite runs in about ten seconds and needs no hardware, so there is no excuse for a
+driver to arrive without tests. Three of the safety modules were also mutation-checked
+during development: break the check, watch the tests fail, restore it.
 
 ## Contributing
 

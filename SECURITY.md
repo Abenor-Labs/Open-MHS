@@ -54,7 +54,8 @@ that has none.
 | **No transport security in-process.** | A bearer token over plain HTTP is a token in everyone's packet capture. Terminate TLS in front of the server for anything but localhost. |
 | **`enforcement: software` is a claim, not a proof.** | The middleware cannot verify that a limit declared as `hardware` corresponds to a real physical stop. A dishonest or mistaken tag is enforced exactly as written. |
 | **`max_duration_s` is parsed but not enforced.** | A target can be held away from its default indefinitely. |
-| **The registry is in-memory and unauthenticated between restarts.** | Devices must re-announce; there is no persistence and no audit log. |
+| **The registry is in-memory.** | Devices must re-announce after a restart; the device list is not persisted. |
+| **The audit log is hash-chained, not signed.** | `open-mhs audit verify` detects edits and deletions. It cannot detect a full rebuild by someone with write access to the file. Ship it to append-only storage. |
 
 ## The rule that matters most
 
