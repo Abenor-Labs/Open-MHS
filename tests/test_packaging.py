@@ -27,6 +27,26 @@ def test_packaged_schema_is_reachable_as_package_data() -> None:
     assert schema["$schema"].startswith("https://json-schema.org/draft/2020-12")
 
 
+def test_every_package_directory_is_covered_by_package_discovery() -> None:
+    """A wheel once shipped without `server.routers`; the app imported fine from a
+    checkout and crashed from `pip install`. Every directory with an `__init__.py` under
+    a shipped root must match a discovery pattern."""
+    pytest.importorskip("tomllib")
+    import fnmatch
+    import tomllib
+
+    cfg = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
+    patterns = cfg["tool"]["setuptools"]["packages"]["find"]["include"]
+    roots = ["server", "drivers", "mcp_adapter", "cli"]
+    missing = []
+    for root in roots:
+        for init in (REPO_ROOT / root).rglob("__init__.py"):
+            dotted = ".".join(init.parent.relative_to(REPO_ROOT).parts)
+            if not any(fnmatch.fnmatch(dotted, pat) for pat in patterns):
+                missing.append(dotted)
+    assert missing == [], f"packages not covered by [tool.setuptools.packages.find]: {missing}"
+
+
 def test_cli_console_script_is_declared() -> None:
     pytest.importorskip("tomllib")
     import tomllib

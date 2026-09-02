@@ -42,8 +42,12 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["server", "drivers", "mcp_adapter", "cli"]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+# Subpackages (server.routers) are found by pattern. A flat list once shipped a wheel
+# without them; tests/test_packaging.py now checks every package dir is covered.
+include = ["server*", "drivers*", "mcp_adapter*", "cli*"]
 
 [tool.setuptools.package-data]
 # The canonical schema lives at schema/capability_schema.json. A byte-identical copy is
