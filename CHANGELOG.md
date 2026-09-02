@@ -25,6 +25,12 @@ Done before the first upload precisely so nobody has to be broken by it later.
   means: passes the published conformance suite, which nothing can claim until that suite
   ships. Adds `CODEOWNERS`, Contributor Covenant 2.1, and an explicit contribution
   licensing statement.
+- **A standards map** (`docs/standards-map.md`): what `enforcement` and `hazard_class`
+  mean against ISO 13849, ISO 12100, ISO 13850 and ISO 10218, where the audit log fits
+  under EU Regulation 2023/1230, and a blunt statement of what this project does not claim
+  — no Performance Level, no Safety Integrity Level, not a substitute for a physical
+  interlock, and not a certification. Written from the standards' scope and terminology,
+  not by a certified functional safety engineer; that review is an open request.
 - **A system threat model** (`docs/threat-model.md`): trust boundaries, what is defended
   and by what, and every gap stated plainly rather than left implicit.
 - **Capability tag prose is treated as untrusted data.** A tag carries eleven free-text

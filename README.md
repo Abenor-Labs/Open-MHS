@@ -566,7 +566,7 @@ open_mhs/                the package; `import open_mhs` for the public API
   mcp_adapter/           MCP server wrapping the HTTP surface
   cli/                   the open-mhs command, plus the export and doc generators
 examples/                worked capability tags, the sim demos, the cell and controller agents
-docs/                    specification documentation, audit log format, RFCs
+docs/                    spec docs, audit log format, threat model, standards map, RFCs
 tests/                   331 tests, no hardware required
 ```
 

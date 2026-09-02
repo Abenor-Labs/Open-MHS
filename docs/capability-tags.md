@@ -117,6 +117,10 @@ Two mutually exclusive forms, enforced by `oneOf` in the schema.
 `software` is the default because it is the pessimistic assumption. Declaring `hardware`
 when no physical stop exists is the most dangerous thing a tag author can do.
 
+[`standards-map.md`](standards-map.md) defines these three values against the vocabulary of
+ISO 13849 and ISO 12100, and states plainly what Open-MHS does not claim: no Performance
+Level, no Safety Integrity Level, and no substitute for a physical interlock.
+
 ### `on_violation`
 
 What the middleware does when a value falls outside the bound. All three modes are
