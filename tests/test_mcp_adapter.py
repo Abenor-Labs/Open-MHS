@@ -18,6 +18,7 @@ import pytest_asyncio
 
 from open_mhs.mcp_adapter import server as adapter
 from open_mhs.mcp_adapter.client import OpenMHSClient
+from open_mhs.mcp_adapter.formatting import DEVICE_TEXT_OPEN
 from tests.conftest import AUTH_HEADERS, TEST_TOKEN
 
 
@@ -104,7 +105,10 @@ async def test_discovery_lists_devices_with_their_bounds(mcp_wired) -> None:
     assert "allowed range: -90.0 to 90.0 deg inclusive" in text
     assert "max rate 30.0 deg/s" in text
     assert "REQUIRES HUMAN CONFIRMATION" in text
-    assert "why: Beyond +/-90 deg the arm collides with the bench mount" in text
+    # The rationale reaches the model, and arrives marked as text the *tag* wrote
+    # rather than text this tool wrote. See tests/test_untrusted_text.py.
+    assert "Beyond +/-90 deg the arm collides with the bench mount" in text
+    assert "why: " + DEVICE_TEXT_OPEN in text
 
 
 @pytest.mark.asyncio
@@ -179,7 +183,8 @@ async def test_out_of_bounds_write_explains_the_real_boundary(mcp_wired, arm_dev
     assert "You commanded joint_1 = 300.0 deg." in text
     assert "The allowed range is -90.0 to 90.0 deg, inclusive." in text
     assert "Retry with a value between -90.0 and 90.0." in text
-    assert "Why this limit exists: Beyond +/-90 deg" in text
+    assert "Beyond +/-90 deg" in text
+    assert "Why this limit exists: " + DEVICE_TEXT_OPEN in text
     assert "Do not attempt to work around this limit." in text
     # The claim in the text must be true.
     assert arm_device.transport.writes == []
@@ -343,7 +348,8 @@ async def test_a_clamped_write_never_reads_like_a_plain_success(
     assert "You requested heater-01.heater_setpoint = 250.0 degC." in text
     assert "clamped it to 80.0 degC" in text
     assert "The hardware is now at 80.0 degC, NOT 250.0 degC" in text
-    assert "Why the limit exists: The solvent boils at 82 degC" in text
+    assert "The solvent boils at 82 degC" in text
+    assert "Why the limit exists: " + DEVICE_TEXT_OPEN in text
     assert heater_device.transport.writes == [("heater_setpoint", 80.0)]
 
 

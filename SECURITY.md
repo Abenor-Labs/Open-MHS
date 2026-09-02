@@ -3,6 +3,9 @@
 Open-MHS sits between a language model and machinery that can move. A defect here is not a
 data-integrity problem; it is a physical one. Please treat it accordingly.
 
+The full system threat model — what is defended, what is not, and why — is in
+[`docs/threat-model.md`](docs/threat-model.md). The table below is a summary of the gaps.
+
 ## Reporting a vulnerability
 
 **Do not open a public issue for a security problem.**

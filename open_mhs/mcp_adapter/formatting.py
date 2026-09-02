@@ -4,10 +4,18 @@ A refusal is only useful if the model can tell *why* it was refused and what to 
 instead. Every rejection rendered here answers three questions: what was refused, what the
 actual boundary is, and what a correct retry looks like. The numbers come straight from
 `error.data`, which is why the middleware puts them there.
+
+Two kinds of text meet in this file and they are not equally trustworthy. The structure —
+headings, bounds, error codes, the retry advice — is written here, in code, from values the
+middleware computed. The prose inside it, a device's `description` or a limit's
+`rationale`, was written by whoever authored the capability tag, and registration is
+authenticated but not attested. Every one of those strings goes through
+`quote_device_text` so it cannot imitate the report around it. See `docs/threat-model.md`.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from open_mhs.mcp_adapter.client import OpenMHSUnreachable, RemoteRPCError, Unauthorized
@@ -19,6 +27,44 @@ from open_mhs.server.errors import (
     SAFETY_LIMIT_VIOLATION,
     STATE_DESYNC,
 )
+
+#: Delimiters around any string that came out of a capability tag. The model is told what
+#: they mean in the MCP server's instructions; without that they are decoration.
+DEVICE_TEXT_OPEN = "<<device-text "
+DEVICE_TEXT_CLOSE = " device-text>>"
+
+#: Free text is capped well under the schema's own limits, because the cap here is about
+#: how much attacker-controlled prose can sit in a model's context, not about storage.
+MAX_DEVICE_TEXT = 900
+
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+_WHITESPACE = re.compile(r"\s+")
+
+
+def quote_device_text(text: str | None) -> str:
+    """Render tag-authored prose so it reads as data rather than as instructions.
+
+    Three things happen, and each closes a specific way the text could imitate the report
+    it sits inside:
+
+    - **Line structure is flattened.** A newline is what lets injected prose start what
+      looks like a new section, a new heading, or a second refusal.
+    - **The delimiters are stripped out of the text**, so it cannot close its own quote.
+    - **Control characters go**, including the escape byte, which would otherwise let a
+      tag write terminal colour codes into an operator's console.
+
+    What this does *not* do is censor. The text is still shown in full, because a tag
+    trying to talk to the model is itself the finding and hiding it would help nobody.
+    """
+    if not text:
+        return ""
+    flat = _WHITESPACE.sub(" ", _CONTROL.sub("", str(text))).strip()
+    flat = flat.replace(DEVICE_TEXT_OPEN, "").replace(DEVICE_TEXT_CLOSE, "")
+    if not flat:
+        return ""
+    if len(flat) > MAX_DEVICE_TEXT:
+        flat = flat[:MAX_DEVICE_TEXT] + " ... (truncated)"
+    return f"{DEVICE_TEXT_OPEN}{flat}{DEVICE_TEXT_CLOSE}"
 
 
 def format_discovery(payload: dict[str, Any]) -> str:
@@ -34,13 +80,13 @@ def format_discovery(payload: dict[str, Any]) -> str:
     for entry in devices:
         tag = entry.get("capability_tag", {})
         status = "online" if entry.get("online") else "STALE (missed heartbeats)"
-        header = f"=== {entry['device_id']} - {entry.get('name', '')} ==="
+        header = f"=== {entry['device_id']} - {quote_device_text(entry.get('name'))} ==="
         lines = [
             header,
             f"type: {entry.get('type')}    status: {status}",
         ]
         if tag.get("description"):
-            lines.append(f"description: {tag['description']}")
+            lines.append(f"description: {quote_device_text(tag['description'])}")
         power = tag.get("power") or {}
         if power.get("hazard_class") and power["hazard_class"] != "none":
             lines.append(f"HAZARD CLASS: {power['hazard_class']}")
@@ -67,7 +113,8 @@ def _render_sensors(sensors: list[dict[str, Any]]) -> str:
         if s.get("accuracy") is not None:
             extra.append(f"+/-{s['accuracy']}{unit}")
         detail = f"  ({'; '.join(extra)})" if extra else ""
-        rows.append(f"  - {s['id']} [{s['datatype']}{unit}]{detail}")
+        label = f" {quote_device_text(s.get('name'))}" if s.get("name") else ""
+        rows.append(f"  - {s['id']} [{s['datatype']}{unit}]{label}{detail}")
     return "READABLE (read_hardware_state):\n" + "\n".join(rows)
 
 
@@ -94,7 +141,7 @@ def _render_actuators(
         if limit.get("enforcement"):
             notes.append(f"enforced in {limit['enforcement']}")
         if limit.get("rationale"):
-            notes.append(f"why: {limit['rationale']}")
+            notes.append(f"why: {quote_device_text(limit['rationale'])}")
         for note in notes:
             rows.append(f"      {note}")
     return "WRITABLE (write_hardware_state):\n" + "\n".join(rows)
@@ -173,9 +220,10 @@ def _clamped_header(result: dict[str, Any], unit: str) -> list[str]:
             f"{condition['equals']!r}."
         )
         if condition.get("rationale"):
-            lines.append(f"Why this state is stricter: {condition['rationale']}")
+            lines.append(
+            f"Why this state is stricter: {quote_device_text(condition['rationale'])}")
     if details.get("rationale"):
-        lines.append(f"Why the limit exists: {details['rationale']}")
+        lines.append(f"Why the limit exists: {quote_device_text(details['rationale'])}")
     lines.append(
         f"The hardware is now at {result['commanded']}{unit}, NOT {result.get('requested')}"
         f"{unit}. Update your plan to match."
@@ -255,7 +303,7 @@ def _safety_violation(exc: RemoteRPCError) -> str:
         lines.append(f"Retry with a value between {d.get('min')} and {d.get('max')}.")
 
     if d.get("rationale"):
-        lines.append(f"Why this limit exists: {d['rationale']}")
+        lines.append(f"Why this limit exists: {quote_device_text(d['rationale'])}")
     if d.get("enforcement"):
         lines.append(f"Enforced in: {d['enforcement']}.")
 

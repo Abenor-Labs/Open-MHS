@@ -25,6 +25,17 @@ Done before the first upload precisely so nobody has to be broken by it later.
   means: passes the published conformance suite, which nothing can claim until that suite
   ships. Adds `CODEOWNERS`, Contributor Covenant 2.1, and an explicit contribution
   licensing statement.
+- **A system threat model** (`docs/threat-model.md`): trust boundaries, what is defended
+  and by what, and every gap stated plainly rather than left implicit.
+- **Capability tag prose is treated as untrusted data.** A tag carries eleven free-text
+  fields and all of them were rendered verbatim into the text a model reads on discovery,
+  in every refusal, and in generated device documents. Registration is authenticated but
+  not attested, so anyone holding the token could publish prose aimed at the model. It
+  cannot widen a bound — the envelope is evaluated in code — but it can change what the
+  agent decides to do next. Free text is now flattened, delimited as
+  `<<device-text ... device-text>>`, and the MCP instructions tell the model what that
+  means. A mitigation, not a proof: measuring how often a labelled injection still works
+  is benchmark work nobody has published.
 - **A declared public API.** `import open_mhs` exposes the specification types, the driver
   base class and transports, the safety evaluator, the middleware factory, the audit log,
   and the error classes. `tests/test_public_api.py` pins the exact set: adding a name is a
@@ -34,7 +45,10 @@ Done before the first upload precisely so nobody has to be broken by it later.
   that a refusal transmits nothing.
 - `py.typed`, so the annotations already in the source reach downstream type checkers.
 
-## 0.2.0 (unreleased as a package) — additions carried into 0.3.0
+## 0.2.0 — 2026-09-02
+
+Capability Tag spec **0.2**. Tagged, and superseded by 0.3.0 before either reached PyPI, so
+these changes shipped to users as part of 0.3.0.
 
 ### Added
 - **The code-file gate.** `open-mhs export <tag>.mhs` generates a standalone, typed Python
@@ -50,12 +64,6 @@ Done before the first upload precisely so nobody has to be broken by it later.
   pace to `max_rate`, sweep the envelope, fit a gain, close the loop with no model, then
   probe past the bound and get refused. Run in CI.
 
-## 0.2.0 — 2026-09-02
-
-Capability Tag spec: **0.2** (introduced in the previous commit series; `conditions`).
-Package: **0.2.0**. First public release.
-
-### Added
 - **Audit log.** Hash-chained JSONL of every command and refusal
   (`docs/audit-log.md`, `open-mhs audit verify`).
 - **`max_duration_s` is enforced.** A dead-man watchdog at the middleware returns the
