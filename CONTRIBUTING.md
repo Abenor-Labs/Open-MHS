@@ -37,6 +37,13 @@ Open-MHS ships a real serial/G-code transport and an in-memory one. Everything e
 
 A driver is two pieces:
 
+**Never block in a transport.** `acquire` and `transmit` are `async`, and they run on the
+event loop shared by every other device. A `time.sleep`, a blocking `socket.recv`, or a
+synchronous vendor SDK call stalls the whole cell for its duration, emergency stops
+included — measured at an exact 2x serialisation in `tests/test_cell_isolation.py`. Wrap
+synchronous work with `anyio.to_thread.run_sync`, as `open_mhs/drivers/serial_transport.py`
+does with pyserial.
+
 1. **A transport** — implement `acquire` and `transmit` from
    [`open_mhs/drivers/transport.py`](open_mhs/drivers/transport.py). It moves bytes and knows nothing about
    capability tags, limits or units.

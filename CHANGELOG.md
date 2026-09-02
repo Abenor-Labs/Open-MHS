@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- **Cell isolation tests** (`tests/test_cell_isolation.py`). Every other multi-device test
+  drives one device at a time, which is not how a cell behaves. These cover concurrent
+  writes to different devices, a refusal on one device leaving another untouched, one
+  device's watchdog not touching another, a stop-all reaching healthy devices when one
+  driver is dead, a snapshot surviving a per-device failure, a plan going stale between
+  check and execute, deregistration mid-plan, and a 0.1 and a 0.2 tag sharing a cell.
+- **A measured finding: one blocking driver serialises the whole cell.** Two devices whose
+  drivers each stall 1.5 s take 1.53 s when both wait cooperatively and 3.05 s when both
+  block. Driver calls run on the event loop, so a `time.sleep` in any driver stops every
+  other device being served, emergency stops included. Documented in
+  `docs/threat-model.md`, ruled on in `CONTRIBUTING.md`, and pinned by a test that fails
+  the day the middleware learns to isolate drivers.
+
 - **RFC 0001, `period` for modular quantities.** The first RFC through the process
   `GOVERNANCE.md` describes, and it exists because the benchmark found the gap on live
   hardware rather than in review. A cube is symmetric every 90 degrees, so the Panda's

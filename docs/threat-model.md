@@ -122,6 +122,19 @@ compromised sensor is a compromised cell.
 guidance that has not been written. On a lab network, assume anyone on the wire has the
 token.
 
+**One blocking driver stalls every device in the cell.** Driver calls run on the event
+loop. A driver that waits with `time.sleep` or a blocking socket read — the shape of
+nearly every synchronous vendor SDK, and what a contributor porting one will write —
+prevents the middleware from serving any other device while it waits, including their
+emergency stops. Measured: two devices whose drivers each stall 1.5 s take 1.53 s when
+both wait cooperatively and 3.05 s when both block, an exact serialisation.
+
+Nothing about this is subtle to exploit and it needs no attacker: one badly written driver
+is enough, and the control it degrades is the one an operator reaches for when something
+is already wrong. The fix is for the middleware to run driver calls off the loop rather
+than to hope drivers behave. Until then it is pinned by `tests/test_cell_isolation.py`,
+so the day it changes a test fails and says so.
+
 **A driver can lie about readings.** The second enforcement point stops a driver
 transmitting an out-of-bounds value, but nothing stops it reporting a sensor value that is
 false. That defeats feedback verification and conditional bounds, both of which trust the
@@ -153,6 +166,7 @@ who is asking.
 - **Per-device credentials** turn one compromised device into one compromised device.
 - **TLS guidance** closes the wire.
 - **A published injection benchmark** turns "we mitigated it" into a number.
+- **Running driver calls off the event loop** stops one driver from stalling a cell.
 
 ## Reporting
 
