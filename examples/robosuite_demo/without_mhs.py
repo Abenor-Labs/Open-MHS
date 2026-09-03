@@ -19,14 +19,48 @@ Not a scripted render: the physics decide where the tool ends up. It is not 0.70
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
+import logging
 import sys
 import threading
 import time
+import warnings
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from cell import Workcell
+
+
+def _quiet_the_toolchain() -> None:
+    """Silence six setup warnings that have nothing to do with what this script shows.
+
+    robosuite logs a missing private macro file, two optional model packages, and an IK
+    backend for a robot this cell does not use; gym prints two more. All are emitted while
+    the environment is built, and on camera they are the first thing on screen. Only the
+    third-party loggers are quieted — this script's own output, and any real error, still
+    prints. glfw's teardown warning is filtered for the same reason: it is the last line
+    on screen and reads like the demo failed, which it did not.
+    """
+    logging.getLogger("robosuite_logs").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", module=r"glfw\..*")
+    with contextlib.suppress(Exception):
+        import glfw
+
+        warnings.filterwarnings("ignore", category=glfw.GLFWError)
+
+
+@contextlib.contextmanager
+def _swallow_build_chatter():
+    """Capture the prints robosuite makes while building, and show them only on failure."""
+    noise = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(noise), contextlib.redirect_stderr(noise):
+            yield
+    except BaseException:
+        sys.stderr.write(noise.getvalue())
+        raise
 
 TABLE_TOP = 0.800          # measured, see CLAUDE.md
 FLOOR_WITH_MHS = 0.83      # what the capability tag would have held the tool to
@@ -73,9 +107,11 @@ def main() -> int:
     ap.add_argument("--viewer", action="store_true", help="interactive MuJoCo window")
     args = ap.parse_args()
 
+    _quiet_the_toolchain()
     print("  building the cell with NO middleware (first run compiles assets)...")
-    cell = Workcell(render=False, interactive=args.viewer, pov=False)
-    cell.build()
+    with _swallow_build_chatter():
+        cell = Workcell(render=False, interactive=args.viewer, pov=False)
+        cell.build()
     results: dict = {}
     threading.Thread(target=drive, args=(cell, results), daemon=True).start()
     try:
