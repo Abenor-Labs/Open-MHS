@@ -66,7 +66,7 @@ TABLE_TOP = 0.800          # measured, see CLAUDE.md
 FLOOR_WITH_MHS = 0.83      # what the capability tag would have held the tool to
 
 
-def drive(cell: Workcell, results: dict) -> None:
+def drive(cell: Workcell, results: dict, hold: bool = False) -> None:
     """Runs on a worker thread; the simulator owns the main thread."""
     def settle(seconds: float) -> None:
         time.sleep(seconds)
@@ -94,18 +94,30 @@ def drive(cell: Workcell, results: dict) -> None:
     results["lowest_z"] = round(lowest, 4)
     results["final_z"] = z
     print(f"  after 6 s        tcp = {pose()}   lowest z seen = {lowest:.4f}")
+    # The gripper is buried in the table right now. On camera that is the whole shot, so
+    # leave it there long enough to frame before the arm is lifted off.
+    settle(4.0 if hold else 0.0)
     print(f"\n  commanded 0.70, table at {TABLE_TOP}, tool stopped at {lowest:.4f}: "
           f"that is the table stopping it, not software.")
     print(f"  with the middleware the floor is {FLOOR_WITH_MHS} and the arm never touches it.")
     cell.command("tcp_z", 1.05)
     settle(2.0)
+    if hold:
+        # Tearing the sim down closes the viewer window, which ends the recording for you.
+        print("\n  viewer held open. Ctrl-C when you have the shot.")
+        return
     cell.shutdown()
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--viewer", action="store_true", help="interactive MuJoCo window")
+    ap.add_argument("--no-hold", dest="hold", action="store_false",
+                    help="exit as soon as the sequence ends instead of holding the viewer")
     args = ap.parse_args()
+    # With a viewer open this is being recorded, and a script that tears its own window
+    # down mid-shot is useless. Headless it should still end on its own.
+    hold = args.hold and args.viewer
 
     _quiet_the_toolchain()
     print("  building the cell with NO middleware (first run compiles assets)...")
@@ -113,7 +125,7 @@ def main() -> int:
         cell = Workcell(render=False, interactive=args.viewer, pov=False)
         cell.build()
     results: dict = {}
-    threading.Thread(target=drive, args=(cell, results), daemon=True).start()
+    threading.Thread(target=drive, args=(cell, results, hold), daemon=True).start()
     try:
         cell.loop()
     except KeyboardInterrupt:
