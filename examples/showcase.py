@@ -50,6 +50,12 @@ BOLD, DIM, GREEN, RED, YELLOW, BLUE, GREY, RESET = (
 PACE = 1.0
 failures: list[str] = []
 
+# Beat 4 has to tell "the refused command moved the arm" apart from "the arm is a real
+# servo". Wait for the previous move to finish, then measure what the cell does at rest.
+IDLE_SAMPLES = 4
+IDLE_POLL_S = 0.1
+IDLE_BUDGET_S = 6.0
+
 
 def _enable_ansi() -> None:
     # The narration uses box drawing and check marks. A Windows console, or a CI runner
@@ -131,6 +137,38 @@ def arrival_tolerance(inventory: dict[str, Any], device: str, target: str) -> fl
         if sensor.get("accuracy"):
             return float(sensor["accuracy"])
     return 1e-6
+
+
+async def settle(client: OpenMHSClient, device: str, target: str,
+                 tolerance: float) -> tuple[Any, float]:
+    """Wait until the channel stops changing, and report how much it still moves at rest.
+
+    Two things move a real arm that no command touched: it is still travelling toward the
+    previous setpoint, and once there it holds position against gravity while the physics
+    engine keeps integrating. Neither is a transmission. So the refusal beat waits out the
+    first and measures the second, instead of asserting a stillness no servo delivers —
+    the same reason the benchmark establishes a baseline before it attributes a change to
+    a write. A mock transport settles instantly and reports zero, which keeps the check
+    exact where exactness is real.
+
+    Returns the last reading and the spread across the idle window.
+    """
+    stable = tolerance / 10 if tolerance > 1e-6 else 0.0
+    deadline = time.monotonic() + IDLE_BUDGET_S
+    window: list[float] = []
+    while True:
+        raw = await read_value(client, device, target)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return raw, 0.0
+        window = (window + [value])[-IDLE_SAMPLES:]
+        spread = max(window) - min(window)
+        if len(window) == IDLE_SAMPLES and spread <= stable:
+            return value, spread
+        if time.monotonic() >= deadline:
+            return value, spread
+        await asyncio.sleep(IDLE_POLL_S)
 
 
 def audit_entries(log: str) -> list[dict[str, Any]]:
@@ -221,7 +259,7 @@ async def run(client: OpenMHSClient) -> int:
     # --------------------------------------------------------------- 4. the refusal ---
     beat(4, "A command outside the envelope",
          "This is the whole point. Watch the reply, then watch the hardware not move.")
-    before = await read_value(client, device, target)
+    before, jitter = await settle(client, device, target, tolerance)
     text = await tool("write_hardware_state", device_id=device, parameter=target, value=absurd)
     check("refused", text.startswith("REJECTED"), text.splitlines()[0])
     check("the refusal states the real bound", str(hi) in text)
@@ -230,8 +268,11 @@ async def run(client: OpenMHSClient) -> int:
     say("The reply told the model the actual boundary, so it can correct itself without "
         "guessing. Now the part a screenshot cannot show: what the hardware did.")
     after = await read_value(client, device, target)
-    check(f"the hardware did not move (still {before}{unit})",
-          abs(float(after) - float(before)) < 1e-6, f"moved to {after}")
+    drift = abs(float(after) - float(before))
+    allowed = max(jitter, 1e-6)
+    at_rest = f" (at rest it wanders ±{jitter:g}{unit})" if jitter else ""
+    check(f"the hardware did not move (still {before}{unit}){at_rest}",
+          drift <= allowed, f"moved to {after}, a change of {drift:g} > {allowed:g}")
 
     # ------------------------------------------------------------------- 5. the gate --
     gated = pick_gated(inventory)
