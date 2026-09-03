@@ -80,6 +80,11 @@ def drive(cell: Workcell, results: dict, hold: bool = False) -> None:
     cell.command("tcp_x", cell.read("red_block_x"))
     cell.command("tcp_y", cell.read("red_block_y"))
     settle(3.0)
+    # Up to the top of the envelope before the plunge. From here the descent is 35 cm and
+    # unmistakable; starting from the rest pose it is 20 cm and reads on camera as the
+    # arm gently touching the block, which is the opposite of the point.
+    cell.command("tcp_z", 1.15)
+    settle(3.0)
     print(f"  over red block   tcp = {pose()}")
 
     # The command the middleware clamps. Nothing here checks it.
@@ -96,7 +101,7 @@ def drive(cell: Workcell, results: dict, hold: bool = False) -> None:
     print(f"  after 6 s        tcp = {pose()}   lowest z seen = {lowest:.4f}")
     # The gripper is buried in the table right now. On camera that is the whole shot, so
     # leave it there long enough to frame before the arm is lifted off.
-    settle(4.0 if hold else 0.0)
+    settle(10.0 if hold else 0.0)
     print(f"\n  commanded 0.70, table at {TABLE_TOP}, tool stopped at {lowest:.4f}: "
           f"that is the table stopping it, not software.")
     print(f"  with the middleware the floor is {FLOOR_WITH_MHS} and the arm never touches it.")
