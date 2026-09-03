@@ -29,15 +29,21 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+# Raised while the MCP SDK's settings model is being built, before main() can filter it,
+# so it has to be silenced here or it is the first thing on screen.
+warnings.filterwarnings("ignore", category=UserWarning, module=r"pydantic_settings\..*")
 
 from open_mhs.mcp_adapter import server as adapter          # noqa: E402
 from open_mhs.mcp_adapter.client import OpenMHSClient        # noqa: E402
@@ -73,6 +79,19 @@ def _enable_ansi() -> None:
             k.SetConsoleMode(k.GetStdHandle(-11), 7)
         except Exception:
             pass
+
+
+def _quiet_the_plumbing() -> None:
+    """Silence the transport's own chatter so the beats are readable on camera.
+
+    httpx logs every request at INFO, and the MCP SDK installs a rich handler that renders
+    each one as a three-line block. Eight of those land between a refusal and the read-back
+    that proves nothing moved, which is exactly the pair the recording exists to show. The
+    replies themselves are untouched — only the library's HTTP log is quieted, and any
+    warning or error still comes through.
+    """
+    for name in ("httpx", "httpcore", "mcp", "FastMCP", "fastmcp"):
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def beat(number: int, title: str, why: str) -> None:
@@ -367,6 +386,7 @@ def main() -> int:
     args = ap.parse_args()
     PACE = 0.0 if args.fast else args.pace
     _enable_ansi()
+    _quiet_the_plumbing()
 
     token = os.getenv("OPEN_MHS_AUTH_TOKEN")
     if not token:
